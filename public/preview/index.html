@@ -17,13 +17,17 @@ table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card)}
 code{font-size:12px}
 </style></head><body><main>
 <h1>Case Files — build preview</h1>
-<p class="meta">v0.3.0 · branch <code>phase-a-combat</code> · commit <a href="https://github.com/fullmeltedalchemist/Detective-rpg/commit/d584b13e3698199254fe8b970e46d56d9093bf6b"><code>d584b13</code></a> · generated 2026-11-02 18:11 UTC</p>
+<p class="meta">v0.4.0 · branch <code>phase-b-street-crime</code> · commit <a href="https://github.com/fullmeltedalchemist/Detective-rpg/commit/79a90ee82d2b5395d1db5711c6d16b44c41d0ca4"><code>79a90ee</code></a> · generated 2026-11-02 19:58 UTC</p>
 <p><a href="../">▶ Play this build</a> · <a href="../health.json">health.json</a> · <a href="report.json">report.json</a> · <a href="report.md">report.md</a> · stable v0.1: <a href="https://detective-rpg-case-files.netlify.app">detective-rpg-case-files.netlify.app</a></p>
 <p class="note"><b>How these were made:</b> Headless Chrome on a 2-core Linux container with SwiftShader (CPU) WebGL 2. Touch tests use iPhone emulation. NOT real iPhone hardware. Screenshots are real frames from this build, rendered on a CPU; real phones render the same scene on the GPU.</p>
 <h2>Automated tests</h2><table><tr><th>Suite</th><th>Passed</th><th>Failed</th><th>Failures</th></tr><tr><td>Case 9-114 regression (smoke.py)</td><td class="ok">68</td><td class="ok">0</td><td></td></tr>
 <tr><td>Touch controls, emulated iPhone (touch.py)</td><td class="ok">9</td><td class="ok">0</td><td></td></tr>
 <tr><td>Combat (combat.py)</td><td class="ok">30</td><td class="ok">0</td><td></td></tr>
-<tr><td>Hit reactions (hits.py)</td><td class="ok">30</td><td class="ok">0</td><td></td></tr></table>
+<tr><td>Hit reactions (hits.py)</td><td class="ok">30</td><td class="ok">0</td><td></td></tr>
+<tr><td>Case 9-201 street crime (street.py)</td><td class="ok">61</td><td class="ok">0</td><td></td></tr>
+<tr><td>LIVE dev site: Case 9-201 (street.py)</td><td class="ok">61</td><td class="ok">0</td><td></td></tr>
+<tr><td>LIVE dev site: Case 9-114 (smoke.py)</td><td class="ok">68</td><td class="ok">0</td><td></td></tr>
+<tr><td>LIVE dev site: touch (touch.py)</td><td class="ok">9</td><td class="ok">0</td><td></td></tr></table>
 <h2>Screenshots</h2><div class="grid"><figure><img src="shots/street_main.webp" alt="Main St looking east from the crossing" loading="lazy"><figcaption>Main St looking east from the crossing</figcaption>
 <details><summary>Before / after (v0.1 → now, 11.4% pixel change)</summary><img src="shots/street_main_compare.webp" alt="comparison" loading="lazy"></details></figure>
 <figure><img src="shots/street_cafe.webp" alt="Café Luna and First Civic Bank storefronts" loading="lazy"><figcaption>Café Luna and First Civic Bank storefronts</figcaption>
@@ -31,7 +35,7 @@ code{font-size:12px}
 <figure><img src="shots/street_station.webp" alt="Precinct 9 police station" loading="lazy"><figcaption>Precinct 9 police station</figcaption>
 <details><summary>Before / after (v0.1 → now, 15.0% pixel change)</summary><img src="shots/street_station_compare.webp" alt="comparison" loading="lazy"></details></figure>
 <figure><img src="shots/park.webp" alt="Pocket park, trees and hedges" loading="lazy"><figcaption>Pocket park, trees and hedges</figcaption>
-<details><summary>Before / after (v0.1 → now, 16.3% pixel change)</summary><img src="shots/park_compare.webp" alt="comparison" loading="lazy"></details></figure>
+<details><summary>Before / after (v0.1 → now, 15.9% pixel change)</summary><img src="shots/park_compare.webp" alt="comparison" loading="lazy"></details></figure>
 <figure><img src="shots/alley.webp" alt="Crime-scene alley beside the bank" loading="lazy"><figcaption>Crime-scene alley beside the bank</figcaption>
 <details><summary>Before / after (v0.1 → now, 6.1% pixel change)</summary><img src="shots/alley_compare.webp" alt="comparison" loading="lazy"></details></figure>
 <figure><img src="shots/interior_cafe.webp" alt="Interior: Café Luna" loading="lazy"><figcaption>Interior: Café Luna</figcaption>
@@ -49,6 +53,12 @@ code{font-size:12px}
 <figure><img src="shots/combat_lot.webp" alt="Combat: armed suspects in the back lot (Oak Ave)" loading="lazy"><figcaption>Combat: armed suspects in the back lot (Oak Ave)</figcaption>
 </figure>
 <figure><img src="shots/driving2.webp" alt="Cruiser on Main St" loading="lazy"><figcaption>Cruiser on Main St</figcaption>
+</figure>
+<figure><img src="shots/street_corner.webp" alt="Case 9-201: the Harbor Flats corner — dealer, buyer and the van" loading="lazy"><figcaption>Case 9-201: the Harbor Flats corner — dealer, buyer and the van</figcaption>
+</figure>
+<figure><img src="shots/street_deal.webp" alt="Hand-to-hand sale: the dealer passes a baggie to a buyer" loading="lazy"><figcaption>Hand-to-hand sale: the dealer passes a baggie to a buyer</figcaption>
+</figure>
+<figure><img src="shots/street_stop.webp" alt="Police stop: the dealer kneels with his hands up before the pat-down" loading="lazy"><figcaption>Police stop: the dealer kneels with his hands up before the pat-down</figcaption>
 </figure></div>
 <h2>Hit reactions</h2><div class="grid"><figure><img src="shots/hit_flinch.webp" alt="First shot: flinches and drops into cover (a bystander ducks once)" loading="lazy"><figcaption>First shot: flinches and drops into cover (a bystander ducks once)</figcaption></figure>
 <figure><img src="shots/hit_repeated.webp" alt="Repeated hits while ducking: flinches only, no squat cycling or restarts" loading="lazy"><figcaption>Repeated hits while ducking: flinches only, no squat cycling or restarts</figcaption></figure>
@@ -57,17 +67,5 @@ code{font-size:12px}
 <figure><img src="shots/death_fall_3.webp" alt="At rest: body held still on the ground" loading="lazy"><figcaption>At rest: body held still on the ground</figcaption></figure>
 <figure><img src="shots/knockout.webp" alt="Knocked out: stays down until recovery begins" loading="lazy"><figcaption>Knocked out: stays down until recovery begins</figcaption></figure>
 <figure><img src="shots/knockout_recover.webp" alt="Recovered: gets up once, after the knock-out ends" loading="lazy"><figcaption>Recovered: gets up once, after the knock-out ends</figcaption></figure></div>
-<h2>Performance</h2><p class="note">FPS below is software-rendered on a CPU and is NOT representative of a phone GPU. Real-device numbers must come from the in-game overlay on an iPhone.</p><table><tr><th>View</th><th>In-game overlay (software render)</th></tr><tr><td>street_main</td><td><code>FPS now 12  (97.1 ms) | 5s avg 10  1% low 10  session 10 | draws 621  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
-<tr><td>street_cafe</td><td><code>FPS now 11  (99.0 ms) | 5s avg 10  1% low 10  session 10 | draws 431  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
-<tr><td>street_station</td><td><code>FPS now 10  (99.3 ms) | 5s avg 10  1% low 10  session 10 | draws 515  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
-<tr><td>park</td><td><code>FPS now 13  (95.2 ms) | 5s avg 10  1% low 10  session 10 | draws 617  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
-<tr><td>alley</td><td><code>FPS now 13  (95.8 ms) | 5s avg 10  1% low 10  session 10 | draws 359  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
-<tr><td>interior_cafe</td><td><code>FPS now 11  (96.4 ms) | 5s avg 10  1% low 10  session 10 | draws 389  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
-<tr><td>interior_bank</td><td><code>FPS now 10  (99.6 ms) | 5s avg 10  1% low 10  session 10 | draws 297  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
-<tr><td>interior_station</td><td><code>FPS now 13  (95.8 ms) | 5s avg 10  1% low 10  session 10 | draws 472  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
-<tr><td>characters</td><td><code>FPS now 10  (99.8 ms) | 5s avg 10  1% low 10  session 10 | draws 480  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
-<tr><td>character_closeup</td><td><code>FPS now 11  (96.5 ms) | 5s avg 10  1% low 10  session 10 | draws 449  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
-<tr><td>combat_aim</td><td><code>FPS now 13  (95.6 ms) | 5s avg 10  1% low 10  session 10 | draws 415  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
-<tr><td>combat_lot</td><td><code>FPS now 10  (99.7 ms) | 5s avg 10  1% low 10  session 10 | draws 337  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
-<tr><td>driving2</td><td><code>FPS now 11  (97.0 ms) | 5s avg 10  1% low 10  session 10 | draws 529  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn  0 km/h | v0.3.0 · 2b3178b</code></td></tr></table>
+<h2>Performance</h2><p class="note">FPS below is software-rendered on a CPU and is NOT representative of a phone GPU. Real-device numbers must come from the in-game overlay on an iPhone.</p><table><tr><th>View</th><th>In-game overlay (software render)</th></tr></table>
 </main></body></html>

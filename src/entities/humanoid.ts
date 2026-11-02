@@ -113,7 +113,6 @@ const ARM_CHILD: Record<string, string> = Object.fromEntries((['l', 'r'] as cons
   [`clavicle_${s}`, `upperarm_${s}`], [`upperarm_${s}`, `lowerarm_${s}`], [`lowerarm_${s}`, `hand_${s}`], [`hand_${s}`, `middle_01_${s}`],
 ]));
 const tmpV = new pc.Vec3();
-const AX = new pc.Vec3(1, 0, 0), AY = new pc.Vec3(0, 1, 0), AZ = new pc.Vec3(0, 0, 1);
 
 export class Humanoid {
   readonly entity: pc.Entity;
@@ -150,6 +149,8 @@ export class Humanoid {
   /** Diagnostics for tests: how many times each clip was started. */
   readonly clipStarts: Record<string, number> = {};
   private holding = false;
+  /** What this character does when standing around (loitering, on the phone). */
+  idleStyle: 'plain' | 'foldArms' | 'phone' = 'plain';
   /** Lying still: the skeleton pose captured when the fall finished, re-applied every frame
    * with the AnimComponent switched off (no re-evaluation, no flicker, no animation cost). */
   private frozen: { n: pc.GraphNode; p: pc.Vec3; r: pc.Quat }[] | null = null;
@@ -504,6 +505,8 @@ export class Humanoid {
         if (g === 0) {
           if (this.pose === 'talk') this.toBase(CLIPS.talk, 0.35);
           else if (this.aim !== 'none') this.toBase(CLIPS.pistolIdle, 0.3);
+          else if (this.idleStyle === 'foldArms' && this.pose === 'normal' && this.injury.torso < 0.25 && this.injury.arm < 0.25) this.toBase(CLIPS.foldArms, 0.4);
+          else if (this.idleStyle === 'phone' && this.pose === 'normal' && this.injury.torso < 0.25 && this.injury.arm < 0.25) this.toBase(CLIPS.phone, 0.4);
           else this.toBase(CLIPS.idle, 0.3);
         } else if (g === 1) { this.toBase(CLIPS.walk, 0.3); animSpeed = pc.math.clamp(sp / 1.45, 0.6, 1.5); }
         else if (g === 2) { this.toBase(CLIPS.jog, 0.3); animSpeed = pc.math.clamp(sp / 3.4, 0.75, 1.35); }
@@ -523,7 +526,8 @@ export class Humanoid {
     this.upperWeight += (wantUpper - this.upperWeight) * Math.min(1, dt * (wantUpper > this.upperWeight ? 16 : 7));
     this.upper.weight = this.upperWeight;
 
-    const target = this.pose === 'cuffed' || this.pose === 'handsUp' ? 1 : 0;
+    // kneeling only happens when surrendering: keep the hands up while on the knees
+    const target = this.pose === 'cuffed' || this.pose === 'handsUp' || this.pose === 'kneel' ? 1 : 0;
     this.poseBlend += (target - this.poseBlend) * Math.min(1, dt * 6);
     const wound = Math.max(this.injury.torso, this.injury.arm);
     const clutch = this.life === 'alive' && wound > 0.25 && this.aim === 'none' && !this.block && this.poseBlend < 0.1 && !this.driving && !upperLocked ? Math.min(1, wound * 1.3) : 0;
@@ -552,20 +556,60 @@ export class Humanoid {
     this.bend('spine_03', right, this.aimPitch * 0.5 * this.upperWeight);
   }
 
+  /**
+   * Hands up / cuffed: point each arm bone in a direction relative to the body (outward, up,
+   * forward, back). Direction-based, so it is independent of any rig's bind-pose frames.
+   */
   private applyPoses() {
     if (this.poseBlend < 0.01) return;
     const p = this.poseBlend;
-    if (this.pose === 'handsUp') {
-      this.override('upperarm_l', [[AZ, -60], [AX, -15]], p);
-      this.override('upperarm_r', [[AZ, 60], [AX, -15]], p);
-      this.override('lowerarm_l', [[AY, -85]], p);
-      this.override('lowerarm_r', [[AY, 85]], p);
-    } else {
-      this.override('upperarm_l', [[AZ, 65], [AX, 35]], p);
-      this.override('upperarm_r', [[AZ, -65], [AX, 35]], p);
-      this.override('lowerarm_l', [[AY, -75]], p);
-      this.override('lowerarm_r', [[AY, 75]], p);
+    const chest = this.bones.get('spine_03')?.e;
+    if (!chest) return;
+    const c = chest.getPosition();
+    const yr = this.yaw * pc.math.DEG_TO_RAD;
+    const fwd = new pc.Vec3(Math.sin(yr), 0, Math.cos(yr));
+    const up = pc.Vec3.UP;
+    const up2 = this.pose === 'handsUp' || this.pose === 'kneel';
+    if (this.pose === 'kneel') {
+      // the kneeling clip leans forward over its work: sit the torso up straight
+      const s1 = this.bones.get('spine_01')?.e, neck = this.bones.get('neck_01')?.e;
+      if (s1 && neck) this.pointBone(s1, neck, up.clone().add(fwd.clone().mulScalar(0.08)).normalize(), 0.85 * p);
     }
+    for (const sd of ['l', 'r']) {
+      const ua = this.bones.get(`upperarm_${sd}`)?.e, la = this.bones.get(`lowerarm_${sd}`)?.e, hand = this.bones.get(`hand_${sd}`)?.e;
+      if (!ua || !la || !hand) continue;
+      const sp = ua.getPosition();
+      const side = new pc.Vec3(sp.x - c.x, 0, sp.z - c.z);
+      // keep "side" perpendicular to forward so a twisted torso doesn't flip it
+      side.sub(fwd.clone().mulScalar(side.dot(fwd)));
+      if (side.lengthSq() < 1e-6) continue;
+      side.normalize();
+      let upperDir: pc.Vec3, foreDir: pc.Vec3;
+      if (up2) {
+        // "don't shoot": elbows out at shoulder height, forearms straight up, palms forward
+        upperDir = side.clone().mulScalar(0.9).add(up.clone().mulScalar(0.25)).add(fwd.clone().mulScalar(0.12)).normalize();
+        foreDir = up.clone().mulScalar(1).add(side.clone().mulScalar(0.12)).add(fwd.clone().mulScalar(0.06)).normalize();
+      } else {
+        // cuffed behind the back: upper arms down and back, forearms across the lower back
+        upperDir = up.clone().mulScalar(-0.95).add(fwd.clone().mulScalar(-0.3)).add(side.clone().mulScalar(0.1)).normalize();
+        foreDir = side.clone().mulScalar(-0.9).add(fwd.clone().mulScalar(-0.22)).add(up.clone().mulScalar(-0.28)).normalize();
+      }
+      this.pointBone(ua, la, upperDir, p);
+      this.pointBone(la, hand, foreDir, p);
+    }
+  }
+
+  /** Turn a bone (in world space) so the direction to its child moves toward `dir`, by weight w. */
+  private pointBone(bone: pc.GraphNode, child: pc.GraphNode, dir: pc.Vec3, w: number) {
+    const cur = child.getPosition().clone().sub(bone.getPosition()).normalize();
+    const d = Math.max(-1, Math.min(1, cur.dot(dir)));
+    const ang = Math.acos(d) * pc.math.RAD_TO_DEG * w;
+    if (ang < 0.2) return;
+    const axis = new pc.Vec3().cross(cur, dir);
+    if (axis.lengthSq() < 1e-9) return;
+    tmpQ.setFromAxisAngle(axis.normalize(), ang);
+    tmpQ2.copy(bone.getRotation());
+    bone.setRotation(tmpQ.mul(tmpQ2));
   }
 
   /** Rotate a bone in world space about an axis (additive, on top of the animation). */
@@ -610,20 +654,20 @@ export class Humanoid {
     if (c > 0.01) {
       const right = new pc.Vec3(-Math.cos(yr), 0, Math.sin(yr));
       this.bend('spine_02', right, 7 * c); this.bend('spine_03', right, 6 * c);
-      this.override('upperarm_l', [[AZ, 72], [AX, -38]], c);
-      this.override('lowerarm_l', [[AY, -120]], c);
+      // left hand pressed to the wound: elbow down and forward, forearm across the stomach
+      const ua = this.bones.get('upperarm_l')?.e, la = this.bones.get('lowerarm_l')?.e, hand = this.bones.get('hand_l')?.e, chest = this.bones.get('spine_03')?.e;
+      if (ua && la && hand && chest) {
+        const fwd = new pc.Vec3(Math.sin(yr), 0, Math.cos(yr));
+        const sp = ua.getPosition(), cp = chest.getPosition();
+        const side = new pc.Vec3(sp.x - cp.x, 0, sp.z - cp.z);
+        side.sub(fwd.clone().mulScalar(side.dot(fwd)));
+        if (side.lengthSq() > 1e-6) {
+          side.normalize();
+          this.pointBone(ua, la, pc.Vec3.UP.clone().mulScalar(-0.82).add(fwd.clone().mulScalar(0.42)).add(side.clone().mulScalar(0.12)).normalize(), c);
+          this.pointBone(la, hand, side.clone().mulScalar(-0.85).add(fwd.clone().mulScalar(0.32)).add(pc.Vec3.UP.clone().mulScalar(0.3)).normalize(), c);
+        }
+      }
     }
-  }
-
-  /** Blend a bone toward a bind-relative pose given as model-space rotations. */
-  private override(name: string, rots: [pc.Vec3, number][], w: number) {
-    const b = this.bones.get(name);
-    if (!b) return;
-    const R = tmpQ.set(0, 0, 0, 1);
-    for (const [axis, deg] of rots) { tmpQ2.setFromAxisAngle(axis, deg); R.mul2(tmpQ2, R); }
-    const target = new pc.Quat().mul2(b.parentBindInv, R).mul(b.parentBind).mul(b.bindLocal);
-    const cur = b.e.getLocalRotation().clone();
-    b.e.setLocalRotation(new pc.Quat().slerp(cur, target, w));
   }
 
   setPosition(x: number, y: number, z: number) { this.entity.setPosition(x, y, z); }

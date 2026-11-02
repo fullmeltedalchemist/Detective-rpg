@@ -5,7 +5,11 @@ import type { WeaponId } from '../combat/weapons';
 
 export type NpcState =
   | 'idle' | 'wander' | 'talking' | 'flee' | 'cuffed' | 'inCar' | 'jailed' | 'goto' | 'watch'
-  | 'combat' | 'surrender' | 'dead' | 'down' | 'cower' | 'recover' | 'hide';
+  | 'combat' | 'surrender' | 'dead' | 'down' | 'cower' | 'recover' | 'hide'
+  /** scripted: stand still facing lookAt until released (hand-offs, frisks) */
+  | 'hold'
+  /** running from the police along an escape route */
+  | 'evade';
 
 const res = { x: 0, z: 0, hit: false, nx: 0, nz: 0 };
 
@@ -44,6 +48,12 @@ export class Npc {
   private clock = 0;
   private threat: pc.Vec3 | null = null;
   private afterRecover: NpcState = 'idle';
+  /** Escape route for the 'evade' state, and how fast they run it. */
+  private escape: [number, number][] = [];
+  private escapeIdx = 0;
+  evadeSpeed = 4.6;
+  /** Set when an evading NPC reaches the end of the route (the director decides what happens). */
+  escaped = false;
 
   // ---- combat ----
   hp = 100;
@@ -118,6 +128,25 @@ export class Npc {
   }
 
   flee(from: pc.Vec3) { this.alarm(from, 'flee'); }
+
+  /** Run from the police along a route (slower than a sprinting player, so a chase can be won). */
+  evade(route: [number, number][]) {
+    if (!this.alive || this.unavailable) return;
+    this.escape = route; this.escapeIdx = 0; this.escaped = false;
+    this.character.pose = 'normal';
+    this.setState('evade');
+  }
+
+  /** Stand still facing a point until released with release(). */
+  hold(face: pc.Vec3 | null) {
+    if (!this.alive || this.unavailable) return;
+    this.lookAt = face ? face.clone() : null;
+    this.setState('hold');
+  }
+
+  release(next: NpcState = this.def.stationary ? 'idle' : 'wander') {
+    if (this.state === 'hold' || this.state === 'evade') this.setState(next);
+  }
   cower(from: pc.Vec3) { this.alarm(from, this.def.stationary ? 'duck' : 'flee'); }
   get panicking() { return this.panicUntil > this.clock; }
 
@@ -230,6 +259,18 @@ export class Npc {
         const yaw = yawTowards(this.x, this.z, playerPos.x, playerPos.z);
         c.yaw = lerpAngle(c.yaw, yaw, Math.min(1, dt * 6));
         if (c.pose === 'normal') c.pose = 'talk';
+        break;
+      }
+      case 'hold': {
+        if (this.lookAt) c.yaw = lerpAngle(c.yaw, yawTowards(this.x, this.z, this.lookAt.x, this.lookAt.z), Math.min(1, dt * 5));
+        break;
+      }
+      case 'evade': {
+        const wp = this.escape[this.escapeIdx];
+        if (!wp) { this.escaped = true; break; }
+        mx = wp[0] - this.x; mz = wp[1] - this.z;
+        speed = this.hp < 60 ? this.evadeSpeed * 0.7 : this.evadeSpeed;
+        if (Math.hypot(mx, mz) < 0.8) this.escapeIdx++;
         break;
       }
       case 'watch': {

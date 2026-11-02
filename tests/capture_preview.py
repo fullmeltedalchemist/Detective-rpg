@@ -74,6 +74,7 @@ with sync_playwright() as p:
         page.screenshot(path=f'{OUT}/{name}.png', timeout=300000)
         diag = page.evaluate("() => (document.querySelector('.diag') || {}).textContent || ''")
         summary['views'].append({'name': name, 'title': title, 'file': f'{name}.png', 'overlay': diag})
+        json.dump(summary, open(f'{OUT}/capture.json', 'w'), indent=1)
         print('captured', name, flush=True)
     # ---- hit-reaction sequence (camera framed on the victim, player hidden) ----
     if not ENV_ONLY and (not ONLY or 'hits' in ONLY):
@@ -84,6 +85,7 @@ with sync_playwright() as p:
             page.screenshot(path=f'{OUT}/{name}.png', timeout=300000)
             summary['views'].append({'name': name, 'title': title, 'file': f'{name}.png'})
             print('captured', name, flush=True)
+            json.dump(summary, open(f'{OUT}/capture.json', 'w'), indent=1)
         def fire(npc, dmg):
             page.evaluate(f'''() => {{ const g = window.__game, n = g.npc("{npc}"), b = n.character.bonePos("spine_03");
               const o = new b.constructor(n.x, b.y, n.z - 8); const d = b.clone().sub(o).normalize();
@@ -108,6 +110,32 @@ with sync_playwright() as p:
         wait_game(2.8); shot('knockout', 'Knocked out: stays down until recovery begins')
         wait_game(5.5); shot('knockout_recover', 'Recovered: gets up once, after the knock-out ends')
         page.evaluate(f'() => {{ {P} g.debugFocus = null; g.player.character.visible = true; g.cam.setFraming(4.2, 1.55); }}')
+    # ---- Phase B: the Harbor Flats corner (Case 9-201) ----
+    if not ENV_ONLY and (not ONLY or 'street' in ONLY):
+        def wait_game2(sec, until=None):
+            page.evaluate('() => { window.__t0 = window.__game.time; }')
+            cond = f'window.__game.time - window.__t0 >= {sec}' + (f' || ({until})' if until else '')
+            page.wait_for_function(cond, polling=300)
+        def shot2(name, title):
+            page.screenshot(path=f'{OUT}/{name}.png', timeout=300000)
+            summary['views'].append({'name': name, 'title': title, 'file': f'{name}.png'})
+            print('captured', name, flush=True)
+            json.dump(summary, open(f'{OUT}/capture.json', 'w'), indent=1)
+        page.evaluate(f'''() => {{ {P} if (g.driving) g.input.press('vehicle'); g.player.place(46, -6.2, 90); g.player.character.visible = false;
+          g.debugFocus = new g.player.pos.constructor(55.5, 0.15, -7.2); g.cam.setFraming(9.5, 1.6); g.cam.yaw = 245; g.cam.pitch = -9; g.cam.snapTo(g.debugFocus);
+          g.street.debugResetCorner(); }}''')
+        wait_game2(1.5)
+        shot2('street_corner', 'Case 9-201: the Harbor Flats corner — dealer, buyer and the van')
+        wait_game2(60, 'window.__game.street.phase === "exchange" && window.__game.street.handed.dealer')
+        page.evaluate(f'''() => {{ {P} g.debugFocus = new g.player.pos.constructor(59, 0.1, -7.6); g.cam.setFraming(3.6, 1.1); g.cam.yaw = 210; g.cam.pitch = -4; g.cam.snapTo(g.debugFocus); }}''')
+        wait_game2(0.1)
+        shot2('street_deal', 'Hand-to-hand sale: the dealer passes a baggie to a buyer')
+        page.evaluate(f'''() => {{ {P} const st = g.street; st.nextDealAt = st.t + 999; const d = g.npc('dealer');
+          g.player.character.visible = true; g.player.place(61.0, -6.4, 250); d.surrender();
+          g.debugFocus = new g.player.pos.constructor(60.2, 0.1, -7.1); g.cam.setFraming(4.6, 1.1); g.cam.yaw = 115; g.cam.pitch = -5; g.cam.snapTo(g.debugFocus); }}''')
+        wait_game2(3.2)
+        shot2('street_stop', 'Police stop: the dealer kneels with his hands up before the pat-down')
+        page.evaluate(f'() => {{ {P} g.debugFocus = null; g.cam.setFraming(4.2, 1.55); }}')
     summary['health'] = page.evaluate("() => fetch('health.json').then(r => r.ok ? r.json() : null).catch(() => null)")
     json.dump(summary, open(f'{OUT}/capture.json', 'w'), indent=1)
     b.close()

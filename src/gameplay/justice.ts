@@ -8,9 +8,10 @@ export type IncidentType =
   | 'assault_civilian' | 'shot_civilian' | 'killed_civilian'
   | 'shot_surrendered' | 'killed_surrendered'
   | 'justified_shooting' | 'nonlethal_arrest' | 'good_arrest' | 'wrongful_arrest'
-  | 'reckless_driving' | 'discharged_weapon_publicly' | 'shot_unarmed_suspect' | 'killed_unarmed_suspect' | 'excessive_force';
+  | 'reckless_driving' | 'discharged_weapon_publicly' | 'shot_unarmed_suspect' | 'killed_unarmed_suspect' | 'excessive_force'
+  | 'took_bribe' | 'refused_bribe' | 'illegal_search' | 'skimmed_seized_cash' | 'drug_bust' | 'case_dismissed';
 
-interface Delta { trust: number; prof: number; ia: number; morality: number; label: string }
+interface Delta { trust: number; prof: number; ia: number; morality: number; label: string; influence?: number }
 
 const DELTAS: Record<IncidentType, Delta> = {
   assault_civilian: { trust: -4, prof: -3, ia: 8, morality: -6, label: 'Assaulted a civilian' },
@@ -27,6 +28,12 @@ const DELTAS: Record<IncidentType, Delta> = {
   shot_unarmed_suspect: { trust: -7, prof: -6, ia: 18, morality: -12, label: 'Shot an unarmed suspect' },
   killed_unarmed_suspect: { trust: -14, prof: -12, ia: 40, morality: -28, label: 'Killed an unarmed suspect' },
   excessive_force: { trust: -3, prof: -3, ia: 8, morality: -6, label: 'Excessive force on a restrained person' },
+  took_bribe: { trust: -6, prof: -4, ia: 20, morality: -20, influence: 15, label: 'Took a bribe to let a dealer walk' },
+  refused_bribe: { trust: 1, prof: 3, ia: 0, morality: 5, label: 'Refused a bribe' },
+  illegal_search: { trust: -2, prof: -4, ia: 6, morality: -3, label: 'Searched someone without probable cause' },
+  skimmed_seized_cash: { trust: -4, prof: -3, ia: 12, morality: -15, influence: 5, label: 'Pocketed seized cash' },
+  drug_bust: { trust: 4, prof: 5, ia: 0, morality: 3, label: 'Drug dealer arrested and charged' },
+  case_dismissed: { trust: -2, prof: -5, ia: 4, morality: 0, label: 'Case thrown out — evidence suppressed' },
 };
 
 export interface Incident { type: IncidentType; label: string; witnessed: boolean; subject?: string; at: number }
@@ -48,6 +55,8 @@ export class Standing {
     const prevIa = this.iaHeat;
     this.iaHeat = clamp(this.iaHeat + d.ia * k, 0, 100);
     this.morality = clamp(this.morality + d.morality, -100, 100);
+    // criminal ties are known to the criminals involved whether or not anyone else saw
+    if (d.influence) this.criminalInfluence = clamp(this.criminalInfluence + d.influence, 0, 100);
     this.incidents.push({ type, label: d.label, witnessed, subject, at: Date.now() });
     let escalation: string | null = null;
     if (prevIa < 40 && this.iaHeat >= 40) escalation = 'Internal Affairs has opened a file on you.';

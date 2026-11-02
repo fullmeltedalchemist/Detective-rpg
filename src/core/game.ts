@@ -15,6 +15,8 @@ import { GameState, EVIDENCE, type EvidenceId } from '../gameplay/state';
 import { currentObjective, dialogueFor, evaluateBooking, type CaseCtx, type BookingResult } from '../gameplay/caseScript';
 import { CombatDirector } from '../gameplay/combatDirector';
 import { ENCOUNTER_NPCS } from '../gameplay/encounter';
+import { StreetCrime, STREET_NPCS } from '../gameplay/streetCrime';
+import { evaluateDrugBooking, drugObjective } from '../gameplay/drugCase';
 import { WEAPONS } from '../combat/weapons';
 
 const MODELS = [
@@ -45,6 +47,10 @@ export const AVATARS: Record<string, { prefix: string; parts: string[] }> = {
   Female_Adult_04: { prefix: 'f004', parts: ['body', 'head', 'opacity'] },
   Female_Adult_08: { prefix: 'f008', parts: ['body', 'head', 'opacity'] },
   Female_Adult_11: { prefix: 'f011', parts: ['body', 'head', 'opacity'] },
+  // Case 9-201
+  Male_Adult_01: { prefix: 'm002', parts: ['body', 'head', 'opacity'] },
+  Female_Adult_13: { prefix: 'f019', parts: ['body', 'head', 'opacity'] },
+  Male_Adult_12: { prefix: 'm007', parts: ['body', 'head'] },
 };
 const HDRI = 'qwantani_late_afternoon_puresky';
 export const BUILD_ID = `v${import.meta.env.VITE_BUILD_VERSION ?? '0.3.0'} · ${(import.meta.env.VITE_BUILD_COMMIT ?? 'dev').slice(0, 7)}`;
@@ -56,6 +62,8 @@ interface Interactable {
   label: () => string | null;
   act: () => void;
   priority?: number;
+  /** Moving interactions (people): where they are now. */
+  follow?: () => { x: number; y: number; z: number };
 }
 
 export class Game {
@@ -75,6 +83,7 @@ export class Game {
   npcs: Npc[] = [];
   state = new GameState();
   combat!: CombatDirector;
+  street!: StreetCrime;
   /** Game-time clock (seconds, capped per frame) — tests wait on this. */
   time = 0;
   /** Test/screenshot hook: camera follows this point instead of the player when set. */
@@ -310,6 +319,7 @@ export class Game {
       { id: 'civ6', name: 'Owen Price', role: 'Resident', look: { body: 'm', outfit: 'civ', avatar: 'Business_Male_04' }, home: [66, 7.2, -90], route: [[66, 7.2], [40, 7.3], [12, 7.2], [40, 7.1]], kind: 'civilian' },
       { id: 'officer1', name: 'Ofc. Sam Delgado', role: 'Patrol officer', look: { body: 'm', outfit: 'officer', avatar: 'Police_Male_01' }, home: [27.5, 6.2, 200], stationary: true, kind: 'staff' },
       ...ENCOUNTER_NPCS,
+      ...STREET_NPCS,
     ];
     for (const d of defs) {
       const ch = human(d.look, d.id);
@@ -321,6 +331,8 @@ export class Game {
 
     this.combat = new CombatDirector(this);
     this.combat.init(root);
+    this.street = new StreetCrime(this);
+    this.street.init();
     this.hud.standingHtml = () => {
       const st = this.combat.standing.summary();
       const inc = this.combat.standing.incidents.slice(-6).reverse().map((i) => `<div class="task">${i.label}${i.witnessed ? ' · witnessed' : ''}${i.subject ? ` — ${i.subject}` : ''}</div>`).join('');
@@ -348,6 +360,11 @@ export class Game {
     if (this.state.add(id)) this.hud.toast(`${EVIDENCE[id].icon}  Added to notebook: ${EVIDENCE[id].name}`);
   }
 
+  /** Public hooks for gameplay modules (street crime etc.). */
+  collectEvidence(id: EvidenceId) { this.collect(id); }
+  arrest(n: Npc) { if (!this.prisoner) this.cuff(n); else this.hud.toast('You already have someone in custody — book them first.'); }
+  talkTo(n: Npc) { this.talk(n); }
+
   // ------------------------------------------------------------------
   private registerInteractions() {
     const A = this.refs.anchors;
@@ -359,8 +376,8 @@ export class Game {
       I.push({
         id: `talk:${n.id}`, pos: n.pos, radius: 2.4, priority: 2,
         label: () => {
-          if (n.state === 'jailed' || n.state === 'inCar' || !n.alive || n.state === 'down' || n.state === 'combat' || n.state === 'surrender') return null;
-          if (this.prisoner === n) return null;
+          if (n.state === 'jailed' || n.state === 'inCar' || !n.alive || n.state === 'down' || n.state === 'combat' || n.state === 'surrender' || n.state === 'evade') return null;
+          if (this.prisoner === n || !n.character.visible) return null;
           if (n.hostile) return null;
           return `Talk to ${n.name.split(' ')[0] === 'Sgt.' ? 'Okafor' : n.name.split(' ')[0]}`;
         },
@@ -423,8 +440,8 @@ export class Game {
         label: () => {
           if (this.prisoner || n.state === 'cuffed' || n.state === 'jailed' || n.state === 'inCar') return null;
           if (!n.alive) return null;
-          if ((n.state === 'surrender' || n.state === 'down') && (n.hostile || n.state === 'down')) return 'Handcuff';
-          if (this.combat.canTakedown(n)) return 'Takedown';
+          if ((n.state === 'surrender' || n.state === 'down') && (n.hostile || n.state === 'down' || n.def.kind === 'suspect')) return 'Handcuff';
+          if (this.combat.canTakedown(n)) return n.def.kind === 'suspect' ? 'Tackle' : 'Takedown';
           return null;
         },
         act: () => {
@@ -449,6 +466,9 @@ export class Game {
       act: () => { this.combat.player.giveWeapon('rifle'); this.combat.player.equip('rifle'); this.hud.toast('Took the bolt-action rifle from the cruiser trunk'); },
     });
 
+    // Street crime (Case 9-201): pat-downs, the van, stopped suspects
+    this.street.registerInteractions((it) => I.push(it));
+
     // Closed businesses — honest feedback
     for (const [k, name] of [['hardwareDoor', 'Marlowe Hardware'], ['laundryDoor', 'Suds Laundromat'], ['flatsDoor', 'Harbor Flats'], ['pearlDoor', 'Pearl Apartments']] as const) {
       I.push({ id: k, pos: A[k], radius: 1.6, priority: 0, label: () => 'Door', act: () => this.hud.toast(`${name} — closed in this build`) });
@@ -456,13 +476,19 @@ export class Game {
   }
 
   private objective() {
-    return currentObjective(this.state, { prisonerName: this.prisoner?.name ?? null });
+    const o = currentObjective(this.state, { prisonerName: this.prisoner?.name ?? null });
+    // once the first case is wrapped up, the drug case becomes the active lead
+    if (!this.prisoner && o.title === 'Case closed') return drugObjective(this.state) ?? o;
+    return o;
   }
 
   private talk(n: Npc) {
     const prev = n.state;
-    n.setState('talking');
-    this.hud.showDialogue(dialogueFor(n.id, n.name, this.caseCtx()), () => {
+    // build the conversation from the NPC's real state (a stopped suspect stays stopped)
+    const node = this.street.dialogue(n) ?? dialogueFor(n.id, n.name, this.caseCtx());
+    const restrained = prev === 'surrender' || prev === 'cuffed';
+    if (!restrained) n.setState('talking');
+    this.hud.showDialogue(node, () => {
       if (n.state === 'talking') n.setState(prev === 'talking' ? (n.def.stationary ? 'idle' : 'wander') : prev);
     });
   }
@@ -493,11 +519,16 @@ export class Game {
     const n = this.prisoner;
     if (!n) return;
     const s = this.state;
-    const r: BookingResult = n.hostile
+    const drug = evaluateDrugBooking(n.id, n.name, s);
+    const r: BookingResult = drug ?? (n.hostile
       ? { outcome: 'charged', title: 'Charged: Armed robbery & weapons offences', rep: 2, jail: true,
           text: `${n.name} is booked. ${n.def.armed ? 'Possession of a firearm and the dealer\'s stolen goods make this an easy charge.' : 'Charged as an accessory — he was the lookout.'}` }
-      : evaluateBooking(n.id, n.name, s);
-    if (n.hostile) this.combat.incident('nonlethal_arrest', n.pos, n);
+      : evaluateBooking(n.id, n.name, s));
+    if (drug) {
+      // exposure of earlier corruption is "witnessed" — it comes out in the interview room
+      for (const type of drug.incidents) this.combat.incident(type, n.pos, n, `book:${type}:${n.id}:${s.arrests.length}`, type === 'took_bribe' || type === 'skimmed_seized_cash' ? true : undefined);
+      if (n.id === 'dealer' && (r.outcome === 'charged' || r.outcome === 'weak')) s.set('drugCaseClosed');
+    } else if (n.hostile) this.combat.incident('nonlethal_arrest', n.pos, n);
     else if (r.outcome === 'charged') this.combat.incident('good_arrest', n.pos, n);
     else if (r.outcome === 'wrongful' || r.outcome === 'noGrounds') this.combat.incident('wrongful_arrest', n.pos, n);
     s.reputation = Math.max(-10, Math.min(10, s.reputation + r.rep));
@@ -625,6 +656,7 @@ export class Game {
     for (const it of this.interactables) {
       if (it.id.startsWith('talk:')) { const n = this.npc(it.id.slice(5)); it.pos.set(n.x, n.y, n.z); }
       else if (it.id.startsWith('restrain:')) { const n = this.npc(it.id.slice(9)); it.pos.set(n.x, n.y, n.z); }
+      else if (it.follow) { const f = it.follow(); it.pos.set(f.x, f.y, f.z); }
       else if (it.id === 'seize' || it.id === 'order') it.pos.set(this.player.x, this.player.y, this.player.z);
       else if (it.id === 'trunk') { const r = this.car.heading * pc.math.DEG_TO_RAD; it.pos.set(this.car.x - Math.sin(r) * 2.6, this.player.y, this.car.z - Math.cos(r) * 2.6); }
     }
@@ -664,6 +696,7 @@ export class Game {
 
     // ---- Combat systems + post-animation overrides ----
     this.combat.update(dt);
+    this.street.update(dt);
     this.player.character.postAnimate();
     for (const n of this.npcs) if (n.state !== 'inCar') n.character.postAnimate();
     this.combat.postAnimate();

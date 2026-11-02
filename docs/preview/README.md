@@ -1,6 +1,6 @@
 # Case Files — build review kit
 
-- **Version:** 0.3.0  ·  **Branch:** `phase-a-combat`  ·  **Commit:** [`d584b13`](https://github.com/fullmeltedalchemist/Detective-rpg/commit/d584b13e3698199254fe8b970e46d56d9093bf6b)
+- **Version:** 0.4.0  ·  **Branch:** `phase-b-street-crime`  ·  **Commit:** [`79a90ee`](https://github.com/fullmeltedalchemist/Detective-rpg/commit/79a90ee82d2b5395d1db5711c6d16b44c41d0ca4)
 - **Dev preview (playable):** https://detective-rpg-dev.netlify.app  ·  **Stable v0.1:** https://detective-rpg-case-files.netlify.app
 - **Testing environment:** Headless Chrome on a 2-core Linux container with SwiftShader (CPU) WebGL 2. Touch tests use iPhone emulation. NOT real iPhone hardware.
 
@@ -10,6 +10,10 @@
 - **Touch controls, emulated iPhone (touch.py)** — 9 passed, 0 failed
 - **Combat (combat.py)** — 30 passed, 0 failed
 - **Hit reactions (hits.py)** — 30 passed, 0 failed
+- **Case 9-201 street crime (street.py)** — 61 passed, 0 failed
+- **LIVE dev site: Case 9-201 (street.py)** — 61 passed, 0 failed
+- **LIVE dev site: Case 9-114 (smoke.py)** — 68 passed, 0 failed
+- **LIVE dev site: touch (touch.py)** — 9 passed, 0 failed
 
 ## Screenshots (current build)
 
@@ -34,7 +38,7 @@ Before (v0.1) vs after — mean pixel change 15.0%
 ### Pocket park, trees and hedges
 ![park](shots/park.webp)
 
-Before (v0.1) vs after — mean pixel change 16.3%
+Before (v0.1) vs after — mean pixel change 15.9%
 ![park compare](shots/park_compare.webp)
 
 ### Crime-scene alley beside the bank
@@ -76,6 +80,15 @@ Before (v0.1) vs after — mean pixel change 8.0%
 ### Cruiser on Main St
 ![driving2](shots/driving2.webp)
 
+### Case 9-201: the Harbor Flats corner — dealer, buyer and the van
+![street_corner](shots/street_corner.webp)
+
+### Hand-to-hand sale: the dealer passes a baggie to a buyer
+![street_deal](shots/street_deal.webp)
+
+### Police stop: the dealer kneels with his hands up before the pat-down
+![street_stop](shots/street_stop.webp)
+
 ## Hit reactions (frames captured by tests/hits.py)
 
 **First shot: flinches and drops into cover (a bystander ducks once)**
@@ -103,16 +116,3 @@ Before (v0.1) vs after — mean pixel change 8.0%
 
 FPS below is software-rendered on a CPU and is NOT representative of a phone GPU. Real-device numbers must come from the in-game overlay on an iPhone.
 
-- `street_main`: FPS now 12  (97.1 ms) | 5s avg 10  1% low 10  session 10 | draws 621  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
-- `street_cafe`: FPS now 11  (99.0 ms) | 5s avg 10  1% low 10  session 10 | draws 431  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
-- `street_station`: FPS now 10  (99.3 ms) | 5s avg 10  1% low 10  session 10 | draws 515  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
-- `park`: FPS now 13  (95.2 ms) | 5s avg 10  1% low 10  session 10 | draws 617  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
-- `alley`: FPS now 13  (95.8 ms) | 5s avg 10  1% low 10  session 10 | draws 359  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
-- `interior_cafe`: FPS now 11  (96.4 ms) | 5s avg 10  1% low 10  session 10 | draws 389  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
-- `interior_bank`: FPS now 10  (99.6 ms) | 5s avg 10  1% low 10  session 10 | draws 297  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
-- `interior_station`: FPS now 13  (95.8 ms) | 5s avg 10  1% low 10  session 10 | draws 472  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
-- `characters`: FPS now 10  (99.8 ms) | 5s avg 10  1% low 10  session 10 | draws 480  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
-- `character_closeup`: FPS now 11  (96.5 ms) | 5s avg 10  1% low 10  session 10 | draws 449  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
-- `combat_aim`: FPS now 13  (95.6 ms) | 5s avg 10  1% low 10  session 10 | draws 415  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
-- `combat_lot`: FPS now 10  (99.7 ms) | 5s avg 10  1% low 10  session 10 | draws 337  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
-- `driving2`: FPS now 11  (97.0 ms) | 5s avg 10  1% low 10  session 10 | draws 529  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn  0 km/h | v0.3.0 · 2b3178b

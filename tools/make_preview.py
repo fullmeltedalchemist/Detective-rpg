@@ -84,7 +84,10 @@ for name, title in [('hit_seq_1', 'Repeated hits: flinch (no restart)'), ('hit_s
 # test results from logs
 tests = []
 for log, title in [('smoke_log.txt', 'Case 9-114 regression (smoke.py)'), ('touch_log.txt', 'Touch controls, emulated iPhone (touch.py)'),
-                   ('combat_log.txt', 'Combat (combat.py)'), ('hits_log.txt', 'Hit reactions (hits.py)')]:
+                   ('combat_log.txt', 'Combat (combat.py)'), ('hits_log.txt', 'Hit reactions (hits.py)'),
+                   ('street_log.txt', 'Case 9-201 street crime (street.py)'),
+                   ('live_street.txt', 'LIVE dev site: Case 9-201 (street.py)'), ('live_smoke.txt', 'LIVE dev site: Case 9-114 (smoke.py)'),
+                   ('live_touch.txt', 'LIVE dev site: touch (touch.py)')]:
     p = os.path.join(args.logs, log)
     if not os.path.exists(p): continue
     txt = open(p, errors='replace').read()

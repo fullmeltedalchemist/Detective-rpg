@@ -47,5 +47,23 @@ Legend: ✅ working & tested · 🟡 partial / placeholder · ⬜ not started.
 - 🟡 Vehicles are still the Kenney low-poly models (better materials only) — no suitable free realistic cars found
 - 🟡 All testing in headless Chrome with software rendering — real iPhone frame rates not yet measured
 
-## Phases B–E
+## Phase B — Drug dealers and street crime (branch `phase-b-street-crime`, v0.4.0)
+Case 9-201 "Corner Business" — given by Ofc. Delgado outside Precinct 9 (available any time after the first briefing; becomes the main lead once Case 9-114 is closed).
+- ✅ Dealer (Cody Brooks), lookout (Kara Pike) and a regular buyer (Andre Mills) on the Harbor Flats corner, east end of Main St — three new Rocketbox avatars
+- ✅ Living street: buyers walk up, cash-for-baggie hand-offs play on both characters, the dealer re-ups from the van every couple of sales, a neighbour (Marcus) buys now and then — whether or not you are watching
+- ✅ Observation as evidence: a sale or a van re-up only counts if the detective actually sees it (distance, facing, line of sight)
+- ✅ Lookout: rolling up in the cruiser, drawing a gun nearby or walking a prisoner past gets you made — "five-oh!", the corner shuts down, a spooked dealer won't sell and is more likely to run
+- ✅ Undercover controlled buy with $100 of marked department money
+- ✅ Stop: the dealer complies (hands up, kneels) or bolts down Main St; he runs slower than a sprinting detective — catch him and Tackle (reasonable force, not recorded as misconduct); lose him and he comes back later knowing your face
+- ✅ Probable cause and procedure: pat-downs and the van search are lawful only after a witnessed sale, a controlled buy or an informant's statement. Search without it and the DA suppresses the evidence — the case is dismissed and he walks
+- ✅ Stopping a buyer after a witnessed sale: seize the baggie, then arrest him or flip him for the dealer's name
+- ✅ The bribe: Cody offers his $640 to walk. Refuse (recorded) or take it — corruption is recorded (morality, criminal ties, IA if anyone saw), the evidence disappears, he goes back to dealing and pays a weekly envelope. Arrest him later and he tells Okafor about the bribe
+- ✅ Van search with his key: stash, scale, $3,100 and a ledger. Optional: pocket $1,000 of seized cash — the ledger's count exposes the shortfall at booking
+- ✅ Booking with real charges from the evidence (possession with intent, sale via controlled buy or observation, trafficking quantity), suppression and dismissal, lookout as accessory, buyer for possession
+- ✅ Notebook: per-case sections (no spoilers for unfound Case 9-201 evidence), cash on hand and buy money; residents and Okafor react to how the case went
+- ✅ Automated: tests/street.py — honest bust, foot chase + tackle + illegal search, bribe + later exposure, lookout
+- 🟡 The van is the low-poly Kenney model; the supplier "M" is only a lead (future case)
+- 🟡 Money has no use yet (shops and station upgrades are Phase D); progress is not saved between sessions (save system planned with Phase C)
+
+## Phases C–E
 - ⬜ Not started (see MASTER_DESIGN.md)
