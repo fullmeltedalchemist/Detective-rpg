@@ -72,7 +72,7 @@ export class GeometryBuilder {
   }
 
   /** Single quad facing +normal direction. Used for signs and decals. */
-  quad(material: pc.Material, center: pc.Vec3, normal: 'px' | 'nx' | 'pz' | 'nz' | 'top', w: number, h: number, uvRect = [0, 0, 1, 1]) {
+  quad(material: pc.Material, center: pc.Vec3, normal: 'px' | 'nx' | 'pz' | 'nz' | 'top', w: number, h: number, uvRect = [0, 1, 1, 0]) {
     const b = this.bucket(material, false);
     const axes: Record<string, [number[], number[], number[]]> = {
       px: [[1, 0, 0], [0, 0, -1], [0, 1, 0]],

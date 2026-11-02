@@ -28,7 +28,7 @@ export class Input {
   private zoneEl: HTMLDivElement;
   readonly lookSensitivity = { touch: 0.28, mouse: 0.18 };
 
-  constructor(private canvas: HTMLCanvasElement, ui: HTMLElement) {
+  constructor(canvas: HTMLCanvasElement, ui: HTMLElement) {
     this.zoneEl = document.createElement('div');
     this.zoneEl.className = 'joy-zone interactive';
     this.joyEl = document.createElement('div');

@@ -39,7 +39,7 @@ export class Materials {
 
   /** Textured surface; tint multiplies the albedo. */
   surface(name: SurfaceName, tint?: pc.Color, key = ''): pc.StandardMaterial {
-    const id = `${name}:${tint?.toString() ?? ''}:${key}`;
+    const id = `${name}:${tint ? tint.toString(false) : ''}:${key}`;
     let m = this.cache.get(id);
     if (m) return m;
     const tex = SURFACES[name].tex;
