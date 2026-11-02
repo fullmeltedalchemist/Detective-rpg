@@ -1,6 +1,6 @@
 # Case Files — build review kit
 
-- **Version:** 0.3.0  ·  **Branch:** `phase-a-combat`  ·  **Commit:** [`0dd95d8`](https://github.com/fullmeltedalchemist/Detective-rpg/commit/0dd95d8485a131a00f20691effc4c45c58434cf6)
+- **Version:** 0.3.0  ·  **Branch:** `phase-a-combat`  ·  **Commit:** [`d584b13`](https://github.com/fullmeltedalchemist/Detective-rpg/commit/d584b13e3698199254fe8b970e46d56d9093bf6b)
 - **Dev preview (playable):** https://detective-rpg-dev.netlify.app  ·  **Stable v0.1:** https://detective-rpg-case-files.netlify.app
 - **Testing environment:** Headless Chrome on a 2-core Linux container with SwiftShader (CPU) WebGL 2. Touch tests use iPhone emulation. NOT real iPhone hardware.
 
@@ -9,7 +9,7 @@
 - **Case 9-114 regression (smoke.py)** — 68 passed, 0 failed
 - **Touch controls, emulated iPhone (touch.py)** — 9 passed, 0 failed
 - **Combat (combat.py)** — 30 passed, 0 failed
-- **Hit reactions (hits.py)** — 28 passed, 0 failed
+- **Hit reactions (hits.py)** — 30 passed, 0 failed
 
 ## Screenshots (current build)
 
@@ -22,25 +22,25 @@ Before (v0.1) vs after — mean pixel change 11.4%
 ### Café Luna and First Civic Bank storefronts
 ![street_cafe](shots/street_cafe.webp)
 
-Before (v0.1) vs after — mean pixel change 13.9%
+Before (v0.1) vs after — mean pixel change 14.0%
 ![street_cafe compare](shots/street_cafe_compare.webp)
 
 ### Precinct 9 police station
 ![street_station](shots/street_station.webp)
 
-Before (v0.1) vs after — mean pixel change 14.9%
+Before (v0.1) vs after — mean pixel change 15.0%
 ![street_station compare](shots/street_station_compare.webp)
 
 ### Pocket park, trees and hedges
 ![park](shots/park.webp)
 
-Before (v0.1) vs after — mean pixel change 15.9%
+Before (v0.1) vs after — mean pixel change 16.3%
 ![park compare](shots/park_compare.webp)
 
 ### Crime-scene alley beside the bank
 ![alley](shots/alley.webp)
 
-Before (v0.1) vs after — mean pixel change 6.0%
+Before (v0.1) vs after — mean pixel change 6.1%
 ![alley compare](shots/alley_compare.webp)
 
 ### Interior: Café Luna
@@ -52,7 +52,7 @@ Before (v0.1) vs after — mean pixel change 16.6%
 ### Interior: First Civic Bank
 ![interior_bank](shots/interior_bank.webp)
 
-Before (v0.1) vs after — mean pixel change 9.9%
+Before (v0.1) vs after — mean pixel change 10.0%
 ![interior_bank compare](shots/interior_bank_compare.webp)
 
 ### Interior: Precinct 9 lobby
@@ -103,5 +103,16 @@ Before (v0.1) vs after — mean pixel change 8.0%
 
 FPS below is software-rendered on a CPU and is NOT representative of a phone GPU. Real-device numbers must come from the in-game overlay on an iPhone.
 
-- `characters`: FPS now 11  (98.7 ms) | 5s avg 10  1% low 10  session 10 | draws 477  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 57a6ce1
-- `character_closeup`: FPS now 10  (99.5 ms) | 5s avg 10  1% low 10  session 10 | draws 446  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 57a6ce1
+- `street_main`: FPS now 12  (97.1 ms) | 5s avg 10  1% low 10  session 10 | draws 621  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
+- `street_cafe`: FPS now 11  (99.0 ms) | 5s avg 10  1% low 10  session 10 | draws 431  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
+- `street_station`: FPS now 10  (99.3 ms) | 5s avg 10  1% low 10  session 10 | draws 515  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
+- `park`: FPS now 13  (95.2 ms) | 5s avg 10  1% low 10  session 10 | draws 617  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
+- `alley`: FPS now 13  (95.8 ms) | 5s avg 10  1% low 10  session 10 | draws 359  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
+- `interior_cafe`: FPS now 11  (96.4 ms) | 5s avg 10  1% low 10  session 10 | draws 389  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
+- `interior_bank`: FPS now 10  (99.6 ms) | 5s avg 10  1% low 10  session 10 | draws 297  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
+- `interior_station`: FPS now 13  (95.8 ms) | 5s avg 10  1% low 10  session 10 | draws 472  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
+- `characters`: FPS now 10  (99.8 ms) | 5s avg 10  1% low 10  session 10 | draws 480  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
+- `character_closeup`: FPS now 11  (96.5 ms) | 5s avg 10  1% low 10  session 10 | draws 449  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
+- `combat_aim`: FPS now 13  (95.6 ms) | 5s avg 10  1% low 10  session 10 | draws 415  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
+- `combat_lot`: FPS now 10  (99.7 ms) | 5s avg 10  1% low 10  session 10 | draws 337  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b
+- `driving2`: FPS now 11  (97.0 ms) | 5s avg 10  1% low 10  session 10 | draws 529  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn  0 km/h | v0.3.0 · 2b3178b
