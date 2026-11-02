@@ -34,10 +34,42 @@ export class Car {
     this.isPolice = modelKey === 'police-car';
     this.entity = new pc.Entity(name);
     const model = assets.instance(modelKey);
+    Car.upgradeMaterials(model);
     this.setupWheels(model); // measure wheels at identity scale
     model.setLocalScale(this.scale, this.scale, this.scale);
     this.entity.addChild(model);
     if (this.isPolice) this.setupSiren();
+  }
+
+  /** Replace the flat Kenney materials with automotive shading (clear-coat paint, glass, rubber). */
+  static upgradeMaterials(model: pc.Entity) {
+    for (const r of model.findComponents('render') as pc.RenderComponent[]) {
+      r.castShadows = true;
+      for (const mi of r.meshInstances) {
+        const src = mi.material as pc.StandardMaterial;
+        const n = src.name.toLowerCase();
+        const m = src.clone() as pc.StandardMaterial;
+        m.useMetalness = true;
+        if (n.startsWith('paint')) {
+          m.metalness = 0.35; m.gloss = 0.78; m.clearCoat = 1; m.clearCoatGloss = 0.92;
+        } else if (n.startsWith('window')) {
+          m.diffuse = new pc.Color(0.05, 0.07, 0.09); m.diffuseMap = null; m.metalness = 0.1; m.gloss = 0.96;
+          m.clearCoat = 1; m.clearCoatGloss = 0.98;
+        } else if (n.startsWith('cartire')) {
+          m.metalness = 0; m.gloss = 0.18;
+        } else if (n.startsWith('lightfront')) {
+          m.emissive = new pc.Color(1, 0.96, 0.85); m.emissiveIntensity = 1.6;
+        } else if (n.startsWith('lightback')) {
+          m.emissive = new pc.Color(0.8, 0.05, 0.03); m.emissiveIntensity = 1.2;
+        } else if (n.startsWith('plastic')) {
+          m.metalness = 0.1; m.gloss = 0.45;
+        } else {
+          m.metalness = 0.5; m.gloss = 0.6;
+        }
+        m.update();
+        mi.material = m;
+      }
+    }
   }
 
   private setupWheels(model: pc.Entity) {

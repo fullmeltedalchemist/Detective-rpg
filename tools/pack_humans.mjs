@@ -78,7 +78,7 @@ for (const [src, dst] of [['UAL1_Standard.glb', 'ual1.glb'], ['UAL2_Standard.glb
 }
 
 // ---- Weapons & heavy props: decimate ----
-const heavy = { service_pistol: 0.18, bolt_action_rifle_7_62: 0.25, concrete_road_barrier_02: 0.08, wooden_military_crate: 0.2, plastic_crate_01: 0.15, metal_jerrycan: 0.25, old_tyre: 0.35 };
+const heavy = { fire_hydrant: 0.06, modular_fire_escape: 0.5, security_light: 0.4, utility_box_02: 0.5, service_pistol: 0.18, bolt_action_rifle_7_62: 0.25, concrete_road_barrier_02: 0.08, wooden_military_crate: 0.2, plastic_crate_01: 0.15, metal_jerrycan: 0.25, old_tyre: 0.35 };
 for (const [name, ratio] of Object.entries(heavy)) {
   const d = path.join(root, 'tools', '.cache', 'models', name);
   if (!fs.existsSync(d)) continue;

@@ -62,7 +62,7 @@ const ONESHOT_CLIP: Record<OneShot, { clip: string; layer: 'base' | 'upper'; spe
  * Which way (model-space yaw, degrees) each fall clip moves the body.
  * Measured from the clips by tests/hits.py; 0 = forward (+Z), 180 = backward.
  */
-export const FALL_YAW: Record<'death' | 'knockback', number> = { death: 10, knockback: -155 };
+export const FALL_YAW: Record<'death' | 'knockback', number> = { death: -5, knockback: 145 };
 
 /** Shared animation registry (tracks loaded once). */
 export class AnimLibrary {

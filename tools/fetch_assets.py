@@ -29,6 +29,9 @@ TEXTURES = {
     "painted_plaster_wall": ["diff", "nor_gl", "arm"],
     "leafy_grass": ["diff", "nor_gl", "arm"],
     "concrete_floor_02": ["diff", "nor_gl", "arm"],
+    "bark_platanus": ["diff", "nor_gl", "arm"],
+    "cobblestone_floor_08": ["diff", "nor_gl", "arm"],
+    "worn_asphalt": ["diff", "nor_gl", "arm"],
 }
 
 HDRI = "qwantani_late_afternoon_puresky"
@@ -43,6 +46,8 @@ MODELS = [
     "hanging_picture_frame_01", "wall_clock", "plastic_monobloc_chair_01", "shrub_03",
     # Phase A weapons
     "service_pistol", "bolt_action_rifle_7_62", "wooden_military_crate", "concrete_road_barrier_02", "metal_jerrycan", "old_tyre", "plastic_crate_01",
+    # environment detail pass
+    "fire_hydrant", "modular_fire_escape", "rollershutter_door", "security_light", "utility_box_02",
 ]
 
 

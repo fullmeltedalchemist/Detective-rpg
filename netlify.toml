@@ -3,6 +3,25 @@
   publish = "dist"
 
 [[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    X-Robots-Tag = "noindex"
+
+[[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=604800"
+    Access-Control-Allow-Origin = "*"
+
+[[headers]]
+  for = "/health.json"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Access-Control-Allow-Origin = "*"
+
+[[headers]]
+  for = "/preview/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Access-Control-Allow-Origin = "*"

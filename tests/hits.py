@@ -9,7 +9,7 @@ Also measures which way each fall clip moves the body (for FALL_YAW).
 import sys, time, os, json, math
 from playwright.sync_api import sync_playwright
 
-URL = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith('--') else 'http://localhost:4173/?quality=low'
+URL = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith('--') else 'http://localhost:4173/?quality=low&norender=1'
 FRAMES = '--frames' in sys.argv
 OUT = 'tests/out'
 os.makedirs(OUT, exist_ok=True)
@@ -29,11 +29,10 @@ def g(page, expr):
 
 
 def game_time(page, secs, timeout=150):
-    page.evaluate('() => { window.__gt = 0; window.__game.app.on("update", window.__gtf = (dt) => { window.__gt += Math.min(dt, 1/15); }); }')
+    page.evaluate('() => { window.__gt0 = window.__game.time; }')
     t0 = time.time()
-    while time.time() - t0 < timeout and page.evaluate('() => window.__gt') < secs:
+    while time.time() - t0 < timeout and page.evaluate('() => window.__game.time - window.__gt0') < secs:
         time.sleep(0.1)
-    page.evaluate('() => window.__game.app.off("update", window.__gtf)')
 
 
 def shoot(page, npc, frm, bone='spine_03', dmg=20):
@@ -59,7 +58,10 @@ def setup(page, npc, x, z, yaw=0, stationary=True, hp=100):
 
 def snap(page, name):
     if FRAMES:
-        page.screenshot(path=f'{OUT}/{name}.png')
+        page.evaluate('() => window.__renderOnce && window.__renderOnce()')
+        page.evaluate('() => new Promise(r => setTimeout(r, 50))')
+        page.evaluate('() => window.__renderOnce && window.__renderOnce()')
+        page.screenshot(path=f'{OUT}/{name}.png', timeout=300000)
 
 
 with sync_playwright() as p:
@@ -82,13 +84,13 @@ with sync_playwright() as p:
     for clip in ['knockback', 'death']:
         setup(page, 'civ3', 14, 2.5, 0)
         cam(14, -1.5, 0, -6, 3)
-        p0 = g(page, '(() => { const n = g.npc("civ3"); const p = n.character.bonePos("pelvis"); return [p.x, p.z]; })()')
+        p0 = g(page, '(() => { const n = g.npc("civ3"); const p = n.character.bonePos("Head"); return [p.x, p.z]; })()')
         page.evaluate(f'() => {{ const n = window.__game.npc("civ3"); n.setState("down"); n.character.life = "alive"; n.character.{"knockDown" if clip == "knockback" else "die"}(null); }}')
         game_time(page, 2.5)
-        p1 = g(page, '(() => { const n = g.npc("civ3"); const p = n.character.bonePos("pelvis"); return [p.x, p.z]; })()')
+        p1 = g(page, '(() => { const n = g.npc("civ3"); const p = n.character.bonePos("Head"); return [p.x, p.z]; })()')
         dx, dz = p1[0] - p0[0], p1[1] - p0[1]
         falls[clip] = round(math.degrees(math.atan2(dx, dz)))  # yaw 0 => character faces +Z
-        print(f'   {clip}: pelvis moved {math.hypot(dx, dz):.2f} m toward yaw {falls[clip]}')
+        print(f'   {clip}: head moved {math.hypot(dx, dz):.2f} m toward yaw {falls[clip]}')
     json.dump(falls, open(f'{OUT}/fall_yaw.json', 'w'))
     page.evaluate('() => { const n = window.__game.npc("civ3"); n.character.revive(); n.setState("idle"); }')
 
@@ -120,14 +122,16 @@ with sync_playwright() as p:
         shoot(page, 'civ3', (14, -6), dmg=30)
         game_time(page, 0.15)
         if i == 2: snap(page, 'death_seq_1')
+    s_dead = starts(page, 'civ3')
     game_time(page, 0.5); snap(page, 'death_seq_2')
     game_time(page, 2.5); snap(page, 'death_seq_3')
+    after_death = diff(s_dead, starts(page, 'civ3'))
     d = diff(s0, starts(page, 'civ3'))
     falls_started = d.get('Death01', 0) + d.get('Hit_Knockback', 0)
     print('   clip starts while being killed:', d)
     check('NPC died', g(page, 'g.npc("civ3").state') == 'dead')
     check('fatal hits: exactly one fall animation', falls_started == 1, d)
-    check('fatal hits: no locomotion/idle restarted after death', all(k not in d for k in ['Idle_Loop', 'Walk_Loop', 'Crouch_Idle_Loop', 'LayToIdle']), d)
+    check('fatal hits: nothing restarts after death (no idle/crouch/get-up)', not after_death, after_death)
     pel1 = g(page, 'g.npc("civ3").character.bonePos("pelvis").y')
     game_time(page, 1.5)
     pel2 = g(page, 'g.npc("civ3").character.bonePos("pelvis").y')

@@ -35,7 +35,7 @@ export interface DoorSlot { x: number; z: number; width: number; axis: 'x' | 'z'
  * ceiling), storefront glazing, upper-floor windows, cornice and roof.
  * Returns door slots so sliding doors can be attached.
  */
-export function buildBuilding(b: GeometryBuilder, s: BuildingSpec, world: CollisionWorld): DoorSlot[] {
+export function buildBuilding(b: GeometryBuilder, s: BuildingSpec, world: CollisionWorld, roofMat?: pc.Material, plinthMat?: pc.Material): DoorSlot[] {
   const { x0, x1, z0, z1, height: H } = s;
   const w = x1 - x0, d = z1 - z0;
   const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
@@ -127,15 +127,45 @@ export function buildBuilding(b: GeometryBuilder, s: BuildingSpec, world: Collis
           const wx = start + i * spacing;
           const wz = frontZ + outward * 0.012;
           b.quad(s.upperWindow, new pc.Vec3(wx, wy, wz), outward > 0 ? 'pz' : 'nz', 1.2, 1.75);
-          b.box(s.trim, wx, wy - 0.95, wz + outward * 0.06, 1.45, 0.1, 0.16, { collide: false });
-          b.box(s.trim, wx, wy + 0.95, wz + outward * 0.03, 1.4, 0.12, 0.08, { collide: false });
+          // reveal: jambs + header project from the wall so the glass reads as recessed
+          const d = 0.11, fo = frontZ + outward * d / 2;
+          b.box(s.trim, wx - 0.66, wy, fo, 0.12, 1.85, d, { collide: false, castShadows: true });
+          b.box(s.trim, wx + 0.66, wy, fo, 0.12, 1.85, d, { collide: false, castShadows: true });
+          b.box(s.trim, wx, wy + 1.0, frontZ + outward * 0.08, 1.58, 0.2, 0.16, { collide: false, castShadows: true });
+          b.box(s.trim, wx, wy + 1.13, frontZ + outward * 0.1, 1.68, 0.06, 0.2, { collide: false, castShadows: false });
+          // projecting sill with a drip edge
+          b.box(s.trim, wx, wy - 0.94, frontZ + outward * 0.11, 1.56, 0.07, 0.22, { collide: false, castShadows: true });
+          b.box(s.trim, wx, wy - 1.0, frontZ + outward * 0.04, 1.4, 0.06, 0.08, { collide: false, castShadows: false });
         }
       }
     }
   }
-  // Cornice + roof
-  b.box(s.trim, cx, H + 0.15, cz, w + 0.5, 0.3, d + 0.5, { collide: false });
-  b.box(s.trim, cx, H + 0.5, frontZ - outward * 0.1, w + 0.3, 0.5, 0.2, { collide: false });
+  // Stepped cornice, parapet with coping, roof deck and rooftop clutter
+  const fz2 = frontZ;
+  b.box(s.trim, cx, H - 0.35, fz2 + outward * 0.06, w + 0.12, 0.18, 0.12, { collide: false });
+  b.box(s.trim, cx, H - 0.18, fz2 + outward * 0.12, w + 0.24, 0.16, 0.24, { collide: false });
+  for (let x = x0 + 0.25; x < x1 - 0.2; x += 0.42) b.box(s.trim, x, H - 0.05, fz2 + outward * 0.16, 0.16, 0.1, 0.32, { collide: false, castShadows: false });
+  b.box(s.trim, cx, H + 0.08, cz, w + 0.46, 0.16, d + 0.46, { collide: false });
+  b.box(s.ext, cx, H + 0.55, fz2 - outward * 0.12, w, 0.8, 0.24, { collide: false, texScale: 3 });
+  b.box(s.ext, cx, H + 0.55, backZ + outward * 0.12, w, 0.8, 0.24, { collide: false, texScale: 3 });
+  b.box(s.ext, x0 + 0.12, H + 0.55, cz, 0.24, 0.8, d, { collide: false, texScale: 3 });
+  b.box(s.ext, x1 - 0.12, H + 0.55, cz, 0.24, 0.8, d, { collide: false, texScale: 3 });
+  b.box(s.trim, cx, H + 0.98, fz2 - outward * 0.12, w + 0.1, 0.06, 0.34, { collide: false });
+  if (roofMat) {
+    b.box(roofMat, cx, H + 0.2, cz, w - 0.4, 0.04, d - 0.4, { collide: false, castShadows: false });
+    const rx = (k: number) => x0 + 1 + ((k * 7.3) % Math.max(1, w - 2));
+    for (let k = 0; k < Math.max(1, Math.floor(w / 7)); k++) {
+      b.box(roofMat, rx(k), H + 0.65, cz + ((k % 2) ? 1.5 : -1.2), 1.4, 0.9, 1.0, { collide: false });
+      b.box(roofMat, rx(k) + 1.6, H + 0.6, cz - 2, 0.25, 0.8, 0.25, { collide: false });
+    }
+    if (H > 11) {
+      // water tank on taller buildings
+      b.box(roofMat, x1 - 3, H + 1.8, backZ + outward * 3, 1.6, 2.2, 1.6, { collide: false });
+      for (const [ox, oz] of [[-0.6, -0.6], [0.6, -0.6], [-0.6, 0.6], [0.6, 0.6]]) b.box(roofMat, x1 - 3 + ox, H + 0.45, backZ + outward * 3 + oz, 0.1, 0.6, 0.1, { collide: false });
+    }
+  }
+  // stone plinth along the street front
+  if (plinthMat) b.box(plinthMat, cx, 0.25, frontZ + outward * 0.03, w + 0.06, 0.5, T + 0.06, { collide: false, texScale: 1.5 });
 
   // ---- Interior ----
   if (s.interior) {

@@ -5,7 +5,7 @@ melee, encounter (standoff/orders/surrender/firefight), takedown, cuffing, booki
 import sys, time, os, json, math
 from playwright.sync_api import sync_playwright
 
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/?quality=low'
+URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/?quality=low&norender=1'
 os.makedirs('tests/out', exist_ok=True)
 results = []
 
@@ -21,13 +21,12 @@ def frames(page, n=2):
     page.evaluate(f'() => new Promise(r => {{ let k = 0; const f = () => {{ if (++k >= {n}) {{ window.__game.app.off("update", f); r(); }} }}; window.__game.app.on("update", f); }})')
 
 def game_time(page, secs, until=None, timeout=150):
-    page.evaluate('() => { window.__gt = 0; window.__game.app.on("update", window.__gtf = (dt) => { window.__gt += Math.min(dt, 1/15); }); }')
+    page.evaluate('() => { window.__gt0 = window.__game.time; }')
     t0 = time.time()
     while time.time() - t0 < timeout:
-        if page.evaluate('() => window.__gt') >= secs: break
+        if page.evaluate('() => window.__game.time - window.__gt0') >= secs: break
         if until and page.evaluate(f'() => {{ const g = window.__game; return {until}; }}'): break
         time.sleep(0.15)
-    page.evaluate('() => window.__game.app.off("update", window.__gtf)')
 
 def place(page, x, z, yaw=0):
     page.evaluate(f'() => {{ const g = window.__game; g.player.place({x}, {z}, {yaw}); g.cam.snapTo(g.player.pos); }}')

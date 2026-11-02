@@ -25,6 +25,7 @@ const MODELS = [
   'SchoolChair_01', 'Television_01', 'office_notepads', 'water_manhole_cover', 'croissant', 'Sofa_01', 'exterior_aircon_unit',
   'wooden_crate_01', 'standing_chalkboard_01', 'hanging_picture_frame_01', 'wall_clock', 'plastic_monobloc_chair_01', 'shrub_03',
   'service_pistol', 'bolt_action_rifle_7_62', 'wooden_military_crate', 'concrete_road_barrier_02', 'metal_jerrycan', 'old_tyre', 'plastic_crate_01',
+  'fire_hydrant', 'modular_fire_escape', 'rollershutter_door', 'security_light', 'utility_box_02',
 ];
 /** Microsoft Rocketbox avatars (MIT) used in this build, with their texture prefixes. */
 export const AVATARS: Record<string, { prefix: string; parts: string[] }> = {
@@ -46,7 +47,7 @@ export const AVATARS: Record<string, { prefix: string; parts: string[] }> = {
   Female_Adult_11: { prefix: 'f011', parts: ['body', 'head', 'opacity'] },
 };
 const HDRI = 'qwantani_late_afternoon_puresky';
-export const BUILD_ID = `v0.2.0-phaseA · ${import.meta.env.MODE}`;
+export const BUILD_ID = `v${import.meta.env.VITE_BUILD_VERSION ?? '0.3.0'} · ${(import.meta.env.VITE_BUILD_COMMIT ?? 'dev').slice(0, 7)}`;
 
 interface Interactable {
   id: string;
@@ -74,6 +75,9 @@ export class Game {
   npcs: Npc[] = [];
   state = new GameState();
   combat!: CombatDirector;
+  /** Game-time clock (seconds, capped per frame) — tests wait on this. */
+  time = 0;
+  cameraFrame: pc.CameraFrame | null = null;
   anims!: AnimLibrary;
   interactables: Interactable[] = [];
   driving = false;
@@ -131,6 +135,10 @@ export class Game {
     this.assets.hdr('sky', `assets/env/${HDRI}.hdr`);
     for (const m of MODELS) this.assets.model(m, `assets/models/${m}.glb`);
     for (const a of ['ual1', 'ual2']) this.assets.model(a, `assets/anims/${a}.glb`);
+    for (const card of ['card_maple', 'card_round', 'card_hedge']) {
+      const t = this.q.textureSize === '1k' ? card : `${card}_512`;
+      this.assets.texture(`foliage:${t}`, `assets/tex/foliage/${t}.webp`, true);
+    }
     const lod = this.q.level === 'low';
     const tier = this.q.level === 'high' ? '1024' : '512';
     for (const [key, av] of Object.entries(AVATARS)) {
@@ -152,6 +160,12 @@ export class Game {
     this.hud.setLoading(1, 'Ready');
 
     app.on('update', (dt: number) => this.update(dt));
+    // Test hook: ?norender=1 runs logic/animation without drawing (fast CI on CPU rendering).
+    // window.__renderOnce() draws the next frame (for screenshots).
+    if (new URLSearchParams(location.search).get('norender') === '1') {
+      app.autoRender = false;
+      (window as any).__renderOnce = () => { app.renderNextFrame = true; };
+    }
     this.hud.onQuality = (lvl) => { saveQuality(lvl); location.reload(); };
     this.hud.onSensitivity = (v) => { this.lookSens = v; try { localStorage.setItem('casefiles.sens', String(v)); } catch { /* */ } };
     const failed = this.assets.failedKeys;
@@ -198,6 +212,29 @@ export class Game {
     });
     this.sun.setEulerAngles(42, 215, 0);
     app.root.addChild(this.sun);
+
+    // High preset: post-processing (SSAO, bloom, MSAA, grading, vignette)
+    if (this.q.level === 'high') {
+      try {
+        const cf = new pc.CameraFrame(app, this.cameraEntity.camera!);
+        cf.rendering.samples = 4;
+        cf.rendering.toneMapping = pc.TONEMAP_ACES;
+        cf.ssao.type = 'lighting';
+        cf.ssao.intensity = 0.55;
+        cf.ssao.radius = 0.9;
+        cf.ssao.blurEnabled = true;
+        cf.bloom.intensity = 0.012;
+        cf.bloom.blurLevel = 14;
+        cf.grading.enabled = true;
+        cf.grading.contrast = 1.06;
+        cf.grading.saturation = 1.04;
+        cf.vignette.intensity = 0.28;
+        cf.vignette.inner = 0.55;
+        cf.vignette.outer = 1.1;
+        cf.update();
+        this.cameraFrame = cf;
+      } catch (e) { console.warn('Post-processing unavailable', e); }
+    }
   }
 
   private setupEnvironment() {
@@ -517,6 +554,7 @@ export class Game {
   private update(dt: number) {
     this.trackPerf(dt);
     dt = Math.min(dt, 1 / 15);
+    this.time += dt;
     if (!this.refs) return;
     const inp = this.input;
     inp.poll();
