@@ -142,7 +142,10 @@ with sync_playwright() as p:
         for _ in range(16):
             st = g(page, f'g.npc("{target}").state')
             if st != 'combat': break
-            page.evaluate('() => { const g = window.__game; g.combat.player.hp = 100; const ws = g.combat.player.ws; if (ws.mag < 3) { ws.mag = 15; } }')
+            # if the detective went down, dismiss the hospital report like a player would
+            if page.locator('.report.show').count():
+                page.locator('.report .chip').evaluate('b => b.click()'); frames(page, 2)
+            page.evaluate('() => { const g = window.__game; g.combat.player.hp = 100; g.input.aimHeld = true; const ws = g.combat.player.ws; if (ws.mag < 3) { ws.mag = 15; } }')
             # flank: pick a nearby spot with a clear line of sight to the target's chest
             spot = page.evaluate(f'''() => {{ const g = window.__game, n = g.npc("{target}"), b = n.character.bonePos("spine_03");
               for (const r of [5, 7, 4]) for (let k = 0; k < 16; k++) {{ const a = k / 16 * Math.PI * 2, x = n.x + Math.cos(a) * r, z = n.z + Math.sin(a) * r;
@@ -154,7 +157,9 @@ with sync_playwright() as p:
             aim_at(page, target)
             fire_once(page); game_time(page, 0.3)
     states = g(page, '["thug1","thug2","lookout"].map(id => g.npc(id).state)')
-    print('   after firefight', states)
+    print('   after firefight', states, g(page, 'g.combat.stats'))
+    if page.locator('.report.show').count():
+        page.locator('.report .chip').evaluate('b => b.click()'); frames(page, 2)
     check('armed suspects neutralised (surrendered, down or killed)', all(s in ('surrender', 'dead', 'down', 'cuffed') for s in states[:2]), str(states))
     inc = g(page, 'g.combat.standing.incidents.map(i => i.type)')
     if 'dead' in states[:2]:
