@@ -1,0 +1,241 @@
+{
+ "version": "0.3.0",
+ "commit": "0dd95d8485a131a00f20691effc4c45c58434cf6",
+ "branch": "phase-a-combat",
+ "generated": "2026-11-02T17:04:51.866148Z",
+ "preview_url": "https://detective-rpg-dev.netlify.app",
+ "stable_url": "https://detective-rpg-case-files.netlify.app",
+ "testing_environment": "Headless Chrome on a 2-core Linux container with SwiftShader (CPU) WebGL 2. Touch tests use iPhone emulation. NOT real iPhone hardware.",
+ "performance_note": "FPS below is software-rendered on a CPU and is NOT representative of a phone GPU. Real-device numbers must come from the in-game overlay on an iPhone.",
+ "tests": [
+  {
+   "suite": "Case 9-114 regression (smoke.py)",
+   "passed": 68,
+   "failed": 0,
+   "failures": [],
+   "exit": 0,
+   "details": [
+    "game started",
+    "no missing assets  [[]]",
+    "W moves player forward (north)  [4.00 -> 0.72]",
+    "wall collision stops player at caf\u00e9 facade  [z=-8.70]",
+    "sliding door lets player into caf\u00e9  [z=-13.81]",
+    "prompt offers talking to Okafor  [Talk to Okafor|ETalk to Okafor]",
+    "dialogue opened",
+    "dialogue choice \"What happened?\" present",
+    "dialogue choice \"On it.\" present",
+    "briefed flag set",
+    "dialogue choice \"Tell me what happened.\" present",
+    "dialogue choice \"Anyone suspicious\" present",
+    "dialogue choice \"Anything else?\" present",
+    "dialogue choice \"find who did this\" present",
+    "Rosa's statement recorded",
+    "examine prompt at slip  [Examine|EExamine]",
+    "examine action available",
+    "slip collected",
+    "slip removed from world",
+    "examine prompt at cigpack  [Examine|EExamine]",
+    "examine action available",
+    "cigpack collected",
+    "cigpack removed from world",
+    "examine prompt at lighter  [Examine|EExamine]",
+    "examine action available",
+    "lighter collected",
+    "lighter removed from world",
+    "footage locked before permission",
+    "dialogue choice \"Did you see anything?\" present",
+    "dialogue choice \"alley camera footage\" present",
+    "dialogue choice \"Thanks.\" present",
+    "examine action available",
+    "footage collected",
+    "dialogue choice \"Were you in the alley\" present",
+    "dialogue choice \"Leave\" present",
+    "Victor's statement",
+    "dialogue choice \"Show: Engraved lighter\" present",
+    "dialogue choice \"Show: Bank alley footage\" present",
+    "Dale confessed",
+    "dialogue choice \"Arrest Dale\" present",
+    "examine action available",
+    "Dale cuffed",
+    "Dale in cuffed state",
+    "cuffed suspect follows the detective  [1.58 m]",
+    "entered police car",
+    "suspect rides in the car",
+    "car drives forward  [6.6 m]",
+    "siren toggled on",
+    "exited police car",
+    "suspect back on foot and cuffed",
+    "booking prompt  [Book Dale|EBook Dale]",
+    "booking report shown",
+    "Dale charged  [CHARGED]",
+    "Dale jailed",
+    "case closed",
+    "examine action available",
+    "bag recovered",
+    "dialogue choice \"Return the bag\" present",
+    "bag returned to Rosa",
+    "dialogue choice \"Leave\" present",
+    "reputation increased  [5]",
+    "dialogue choice \"Arrest Victor\" present",
+    "examine action available",
+    "wrongful arrest detected  [WRONGFUL ARREST]",
+    "Victor now refuses to talk",
+    "notebook opens",
+    "settings menu opens",
+    "no page errors"
+   ]
+  },
+  {
+   "suite": "Touch controls, emulated iPhone (touch.py)",
+   "passed": 9,
+   "failed": 0,
+   "failures": [],
+   "exit": 0,
+   "details": [
+    "touch UI enabled",
+    "joystick visible",
+    "interact button visible",
+    "joystick moves the detective  [7.44 m]",
+    "right-side drag rotates camera  [360 -> 331]",
+    "interact button armed  [TALK TO OKAFOR]",
+    "dialogue opened by tapping interact",
+    "dialogue choice tappable",
+    "no page errors"
+   ]
+  },
+  {
+   "suite": "Combat (combat.py)",
+   "passed": 30,
+   "failed": 0,
+   "failures": [],
+   "exit": 0,
+   "details": [
+    "animation library loaded  [36]",
+    "player uses animated humanoid",
+    "pistol equipped via key 2",
+    "aiming (ADS) active",
+    "ADS narrows field of view  [45 -> 44]",
+    "firing uses a round",
+    "recoil kicks the camera up  [2.0 -> 2.9]",
+    "bullet hit the world (impact registered)  [{'npcShots': 0, 'playerShots': 1, 'bodyHits': 0, 'worldHits': 1}]",
+    "semi-auto fires one shot per trigger pull  [10]",
+    "reload started",
+    "reload refills magazine from reserve  [15/40]",
+    "bullet damages a character (hit detection)  [hp 66]",
+    "shooting a civilian is recorded as misconduct  [['discharged_weapon_publicly', 'shot_civilian']]",
+    "public trust dropped",
+    "IA attention increased",
+    "fists equipped",
+    "punch lands and counts as assault on a civilian",
+    "punch reduced consciousness",
+    "suspects notice the detective",
+    "verbal order resolves into surrender or fight",
+    "armed hostiles return fire  [{'npcShots': 4, 'playerShots': 6, 'bodyHits': 2, 'worldHits': 8}]",
+    "armed suspects neutralised (surrendered, down or killed)  [['surrender', 'dead', 'combat']]",
+    "killing an armed, firing suspect is logged as justified  [['discharged_weapon_publicly', 'shot_civilian', 'assault_civilian', 'justified_shooting']]",
+    "at least one suspect can be taken alive  [['surrender', 'dead', 'combat']]",
+    "handcuff prompt on surrendered/downed suspect  [Handcuff]",
+    "suspect cuffed",
+    "armed suspect charged at booking  [CHARGED]",
+    "non-lethal arrest credited",
+    "notebook lists standing + incidents",
+    "no page errors"
+   ]
+  },
+  {
+   "suite": "Hit reactions (hits.py)",
+   "passed": 28,
+   "failed": 0,
+   "failures": [],
+   "exit": 0,
+   "details": [
+    "8 rapid hits: reaction clip starts at most twice (rate-limited)  [{'Hit_Chest': 1, 'Crouch_Idle_Loop': 1}]",
+    "8 rapid hits: no repeated crouch/squat  [{'Hit_Chest': 1, 'Crouch_Idle_Loop': 1}]",
+    "8 rapid hits: no fall/death clip on a survivor  [{'Hit_Chest': 1, 'Crouch_Idle_Loop': 1}]",
+    "wounds recorded (limp / clutch drivers)",
+    "NPC died",
+    "fatal hits: exactly one fall animation  [{'Hit_Chest': 1, 'Crouch_Idle_Loop': 1, 'Death01': 1}]",
+    "fatal hits: nothing restarts after death (no idle/crouch/get-up)",
+    "pelvis sampled on every frame (civ3)  [93 frames]",
+    "body lies still on the ground after the fall (every frame for 2 s)  [pelvis height 0.06..0.06]",
+    "shooting a corpse starts no animations",
+    "knocked-out NPC is lying still",
+    "pelvis sampled on every frame (civ2)  [50 frames]",
+    "knocked-out body never pops up (every frame for 1 s)  [pelvis height 0.06..0.06]",
+    "still down while hit on the ground",
+    "recovery begins only after the knock-out ends  [recover]",
+    "knockdown: exactly one fall and one get-up  [{'Death01': 1, 'Idle_Loop': 1, 'LayToIdle': 1}]",
+    "back on their feet  [idle]",
+    "pelvis sampled on every frame (civ3)  [137 frames]",
+    "killed mid-fall: dead, exactly one fall  [{'Death01': 1}]",
+    "killed mid-fall: body never pops up (every frame for 2.5 s)  [pelvis height 0.06..0.06]",
+    "staff ducks during gunfire",
+    "staff: crouched once, not repeatedly  [{'Crouch_Idle_Loop': 1}]",
+    "staff stands up after it goes quiet  [idle]",
+    "staff: one crouch per panic episode  [{'Idle_Loop': 1, 'Crouch_Idle_Loop': 1}]",
+    "pedestrian ran away  [{'Sprint_Loop': 1, 'Crouch_Idle_Loop': 1}]",
+    "pedestrian: at most one crouch while danger lasts  [{'Sprint_Loop': 1, 'Crouch_Idle_Loop': 1}]",
+    "pedestrian: no gait flicker (jog/sprint switch at most twice each)  [{'Sprint_Loop': 1, 'Crouch_Idle_Loop': 1}]",
+    "no page errors"
+   ]
+  }
+ ],
+ "screenshot_change_vs_v0_1": [
+  {
+   "view": "street_main",
+   "mean_pixel_change_pct": 11.4
+  },
+  {
+   "view": "street_cafe",
+   "mean_pixel_change_pct": 13.9
+  },
+  {
+   "view": "street_station",
+   "mean_pixel_change_pct": 14.9
+  },
+  {
+   "view": "park",
+   "mean_pixel_change_pct": 15.9
+  },
+  {
+   "view": "alley",
+   "mean_pixel_change_pct": 6.0
+  },
+  {
+   "view": "interior_cafe",
+   "mean_pixel_change_pct": 16.6
+  },
+  {
+   "view": "interior_bank",
+   "mean_pixel_change_pct": 9.9
+  },
+  {
+   "view": "interior_station",
+   "mean_pixel_change_pct": 8.0
+  }
+ ],
+ "perf_software_render": [
+  {
+   "view": "characters",
+   "overlay": "FPS now 11  (98.7 ms) | 5s avg 10  1% low 10  session 10 | draws 477  shadow 0.0 ms | res 768\u00d7432 @0.80x | quality medium +dyn   | v0.3.0 \u00b7 57a6ce1"
+  },
+  {
+   "view": "character_closeup",
+   "overlay": "FPS now 10  (99.5 ms) | 5s avg 10  1% low 10  session 10 | draws 446  shadow 0.0 ms | res 768\u00d7432 @0.80x | quality medium +dyn   | v0.3.0 \u00b7 57a6ce1"
+  }
+ ],
+ "load_seconds_software": 25.7,
+ "health": {
+  "status": "ok",
+  "game": "Case Files \u2014 Detective RPG",
+  "version": "0.3.0",
+  "commit": "57a6ce1f156cc676fc1f7e6fe7dc3af5f286797e",
+  "branch": "phase-a-combat",
+  "builtAt": "2026-11-02T16:39:38.124Z",
+  "shortCommit": "57a6ce1",
+  "githubCommitUrl": "https://github.com/fullmeltedalchemist/Detective-rpg/commit/57a6ce1f156cc676fc1f7e6fe7dc3af5f286797e",
+  "preview": "/preview/",
+  "renderer": "PlayCanvas (WebGL 2)"
+ },
+ "capture_errors": []
+}
