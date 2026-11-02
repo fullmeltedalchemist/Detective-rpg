@@ -77,6 +77,8 @@ export class Game {
   combat!: CombatDirector;
   /** Game-time clock (seconds, capped per frame) — tests wait on this. */
   time = 0;
+  /** Test/screenshot hook: camera follows this point instead of the player when set. */
+  debugFocus: pc.Vec3 | null = null;
   cameraFrame: pc.CameraFrame | null = null;
   anims!: AnimLibrary;
   interactables: Interactable[] = [];
@@ -677,7 +679,7 @@ export class Game {
     });
 
     // ---- Camera ----
-    const target = this.driving ? this.car.entity.getPosition() : this.player.pos;
+    const target = this.debugFocus ?? (this.driving ? this.car.entity.getPosition() : this.player.pos);
     this.cam.update(dt, target);
     if (this.shake > 0) {
       this.shake = Math.max(0, this.shake - dt);

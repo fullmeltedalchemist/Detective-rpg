@@ -75,6 +75,39 @@ with sync_playwright() as p:
         diag = page.evaluate("() => (document.querySelector('.diag') || {}).textContent || ''")
         summary['views'].append({'name': name, 'title': title, 'file': f'{name}.png', 'overlay': diag})
         print('captured', name, flush=True)
+    # ---- hit-reaction sequence (camera framed on the victim, player hidden) ----
+    if not ENV_ONLY and (not ONLY or 'hits' in ONLY):
+        def wait_game(sec):
+            page.evaluate('() => { window.__t0 = window.__game.time; }')
+            page.wait_for_function(f'window.__game.time - window.__t0 >= {sec}', polling=500)
+        def shot(name, title):
+            page.screenshot(path=f'{OUT}/{name}.png', timeout=300000)
+            summary['views'].append({'name': name, 'title': title, 'file': f'{name}.png'})
+            print('captured', name, flush=True)
+        def fire(npc, dmg):
+            page.evaluate(f'''() => {{ const g = window.__game, n = g.npc("{npc}"), b = n.character.bonePos("spine_03");
+              const o = new b.constructor(n.x, b.y, n.z - 8); const d = b.clone().sub(o).normalize();
+              g.combat.ballistics.fire(o, d, 400, "player", {dmg}, 2, 0.7, 60, "pistol"); }}''')
+        page.evaluate(f'''() => {{ {P} if (g.driving) g.input.press('vehicle'); }}''')
+        wait_game(0.3)
+        page.evaluate(f'''() => {{ {P} g.player.place(16, -12, 0); g.player.character.visible = false;
+          const n = g.npc('civ6'); n.def.stationary = true; n.hp = 10000; n.def.home = [14, 2.5, 180]; n.teleport(14, 2.5, 180); n.setState('idle');
+          g.debugFocus = new n.pos.constructor(14, 0.15, 2.5); g.cam.yaw = 330; g.cam.pitch = -6; g.cam.distance = g.cam.targetDistance = 4.2; g.cam.height = 1.2; g.cam.snapTo(g.debugFocus); }}''')
+        wait_game(1.0)
+        fire('civ6', 30); wait_game(0.12); shot('hit_flinch', 'Hit reaction: flinch away from the shot (spring, never restarts)')
+        fire('civ6', 30); wait_game(0.25); fire('civ6', 30); wait_game(0.25)
+        shot('hit_repeated', 'Repeated hits: ducks once and stays down (no squat cycling)')
+        page.evaluate(f'''() => {{ {P} const n = g.npc('civ6'); n.hp = 40; }}''')
+        fire('civ6', 30); wait_game(0.05); fire('civ6', 30); wait_game(0.35); shot('death_fall_1', 'Fatal hit: one fall, cross-faded from the current pose')
+        wait_game(0.5); shot('death_fall_2', 'Falling backwards, away from the shooter')
+        wait_game(2.0); shot('death_fall_3', 'At rest: body held still on the ground')
+        page.evaluate(f'''() => {{ {P} const n = g.npc('civ2'); n.def.stationary = true; n.def.home = [17.5, 2.5, 180]; n.teleport(17.5, 2.5, 180); n.setState('idle');
+          g.debugFocus = new n.pos.constructor(17.5, 0.15, 2.5); g.cam.snapTo(g.debugFocus); }}''')
+        wait_game(0.6)
+        page.evaluate(f'''() => {{ {P} const n = g.npc('civ2'); n.knockOut(6, new n.pos.constructor(17.5, 0, -5)); }}''')
+        wait_game(2.8); shot('knockout', 'Knocked out: stays down until recovery begins')
+        wait_game(5.5); shot('knockout_recover', 'Recovered: gets up once, after the knock-out ends')
+        page.evaluate(f'() => {{ {P} g.debugFocus = null; g.player.character.visible = true; }}')
     summary['health'] = page.evaluate("() => fetch('health.json').then(r => r.ok ? r.json() : null).catch(() => null)")
     json.dump(summary, open(f'{OUT}/capture.json', 'w'), indent=1)
     b.close()

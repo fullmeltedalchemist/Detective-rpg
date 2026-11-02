@@ -276,7 +276,7 @@ export class Npc {
         // Run until well clear, then take cover if danger continues
         const from = this.fleeFrom;
         const dist = from ? Math.hypot(this.x - from.x, this.z - from.z) : 99;
-        if (from) { mx = this.x - from.x; mz = this.z - from.z; speed = this.hp < 60 ? 3.2 : 4.6; }
+        if (from) { mx = this.x - from.x; mz = this.z - from.z; speed = this.hp < 60 ? 3.3 : 5.6; }
         const blocked = this.stateT > 1 && c.speed < 0.6;
         if (dist > 28 || this.stateT > 8 || blocked) {
           if (this.panicking) this.setState('hide');

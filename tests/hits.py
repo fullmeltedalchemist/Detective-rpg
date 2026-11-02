@@ -81,7 +81,7 @@ with sync_playwright() as p:
 
     # ---------- 1. measure fall directions ----------
     falls = {}
-    for clip in ['knockback', 'death']:
+    for clip in ['death']:
         setup(page, 'civ3', 14, 2.5, 0)
         cam(14, -1.5, 0, -6, 3)
         p0 = g(page, '(() => { const n = g.npc("civ3"); const p = n.character.bonePos("Head"); return [p.x, p.z]; })()')
@@ -135,7 +135,7 @@ with sync_playwright() as p:
     pel1 = g(page, 'g.npc("civ3").character.bonePos("pelvis").y')
     game_time(page, 1.5)
     pel2 = g(page, 'g.npc("civ3").character.bonePos("pelvis").y')
-    check('body lies still after the fall', abs(pel1 - pel2) < 0.03 and pel2 < 0.6, f'{pel1:.2f} -> {pel2:.2f}')
+    check('body lies still on the ground after the fall', abs(pel1 - pel2) < 0.03 and pel2 < 0.55, f'pelvis height {pel1:.2f} -> {pel2:.2f}')
     s1 = starts(page, 'civ3')
     page.evaluate('() => { const n = window.__game.npc("civ3"); n.damage(50, "bullet", "player", "torso", null); }')
     game_time(page, 0.5)
@@ -147,8 +147,8 @@ with sync_playwright() as p:
     cam(17, -2, 20, -6, 4)
     game_time(page, 0.3)
     s0 = starts(page, 'civ2')
-    page.evaluate(f'() => {{ const g = window.__game, n = g.npc("civ2"); n.knockOut(4, new n.pos.constructor(18, 0, -6)); }}')
-    game_time(page, 1.6); snap(page, 'knockdown_1')
+    page.evaluate(f'() => {{ const g = window.__game, n = g.npc("civ2"); n.knockOut(5.5, new n.pos.constructor(18, 0, -6)); }}')
+    game_time(page, 3.0); snap(page, 'knockdown_1')
     check('knocked-out NPC is lying still', g(page, 'g.npc("civ2").character.lyingStill'))
     # extra hits while down must not restart anything
     for _ in range(3):
@@ -161,7 +161,7 @@ with sync_playwright() as p:
     game_time(page, 3.0); snap(page, 'knockdown_2')
     d = diff(s0, starts(page, 'civ2'))
     print('   knockdown cycle clip starts:', d)
-    check('knockdown: exactly one fall and one get-up, no death clip', d.get('Hit_Knockback', 0) == 1 and d.get('LayToIdle', 0) == 1 and d.get('Death01', 0) == 0, d)
+    check('knockdown: exactly one fall and one get-up', d.get('Death01', 0) + d.get('Hit_Knockback', 0) == 1 and d.get('LayToIdle', 0) == 1, d)
     check('back on their feet', g(page, 'g.npc("civ2").state') in ('idle', 'flee', 'wander', 'watch'), g(page, 'g.npc("civ2").state'))
 
     # ---------- 5. staff behind the counter under sustained gunfire: duck once ----------
@@ -188,6 +188,7 @@ with sync_playwright() as p:
     print('   pedestrian clip starts:', d)
     check('pedestrian ran away', d.get('Sprint_Loop', 0) + d.get('Jog_Fwd_Loop', 0) >= 1, d)
     check('pedestrian: at most one crouch while danger lasts', d.get('Crouch_Idle_Loop', 0) <= 1, d)
+    check('pedestrian: no gait flicker (jog/sprint switch at most twice each)', d.get('Jog_Fwd_Loop', 0) <= 2 and d.get('Sprint_Loop', 0) <= 2, d)
 
     check('no page errors', not errors, ' | '.join(errors[:3]))
     json.dump(results, open(f'{OUT}/hits_results.json', 'w'), indent=1)

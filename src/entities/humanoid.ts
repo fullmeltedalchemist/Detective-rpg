@@ -62,7 +62,7 @@ const ONESHOT_CLIP: Record<OneShot, { clip: string; layer: 'base' | 'upper'; spe
  * Which way (model-space yaw, degrees) each fall clip moves the body.
  * Measured from the clips by tests/hits.py; 0 = forward (+Z), 180 = backward.
  */
-export const FALL_YAW: Record<'death' | 'knockback', number> = { death: -5, knockback: 145 };
+export const FALL_YAW: Record<'death', number> = { death: 180 };
 
 /** Shared animation registry (tracks loaded once). */
 export class AnimLibrary {
@@ -146,6 +146,8 @@ export class Humanoid {
   /** Diagnostics for tests: how many times each clip was started. */
   readonly clipStarts: Record<string, number> = {};
   private holding = false;
+  private holdTime = 0;
+  private gait = 0;
   /** Optional retarget target (set by the avatar system). */
   retarget: ((driver: Humanoid) => void) | null = null;
 
@@ -397,12 +399,14 @@ export class Humanoid {
     this.stagger.x += dx * push; this.stagger.z += dz * push;
     if (severity >= 0.45 && this.clock - this.lastHitClip > 1.1 && !this.oneShot && this.pose === 'normal' && !this.crouch) {
       this.lastHitClip = this.clock;
-      this.play(region === 'head' ? 'hitHead' : 'hitChest', 0.08);
+      // very heavy hits (rifle) stagger the whole body; others are an upper-body reaction
+      if (severity >= 0.95 && region !== 'head') this.play('knockback', 0.1);
+      else this.play(region === 'head' ? 'hitHead' : 'hitChest', 0.08);
     }
   }
 
   /** Yaw for which `clip` falls away from `from`. */
-  fallYawAwayFrom(from: pc.Vec3 | null, clip: 'death' | 'knockback') {
+  fallYawAwayFrom(from: pc.Vec3 | null, clip: 'death') {
     if (!from) return this.yaw;
     const p = this.entity.getPosition();
     const away = Math.atan2(p.x - from.x, p.z - from.z) * pc.math.RAD_TO_DEG;
@@ -440,29 +444,39 @@ export class Humanoid {
         const done = this.oneShot;
         this.oneShot = null;
         this.anim.speed = 1;
-        if (done.layer === 'base' && (done.name === 'death' || done.name === 'knockback') && this.life !== 'alive') {
+        if (done.layer === 'base' && done.name === 'death' && this.life !== 'alive') {
           // lie still on the last frame until recovery explicitly starts
           this.oneShot = { ...done, t: done.dur, dur: Infinity };
           this.holding = true;
-          this.anim.speed = 0;
+          this.holdTime = Math.max(0, (this.lib.tracks.get(CLIPS.death)?.duration ?? 1) - 0.04);
         } else if (done.layer === 'base') this.baseState = '';
         else this.upperState = '';
       }
     }
 
+    // lying still: pin the fall clip to its final frame (pausing the component resets the pose)
+    if (this.holding && this.base) { this.anim.speed = 1; this.base.activeStateCurrentTime = this.holdTime; }
     const baseLocked = this.oneShot?.layer === 'base';
     if (!baseLocked && this.life === 'alive') {
       const sp = this.speed;
       if (this.driving) this.toBase(CLIPS.drive);
       else if (this.pose === 'kneel') this.toBase(CLIPS.kneel, 0.45);
       else if (this.crouch) this.toBase(sp > 0.3 ? CLIPS.crouchWalk : CLIPS.crouch, 0.4);
-      else if (sp < 0.15) {
-        if (this.pose === 'talk') this.toBase(CLIPS.talk, 0.35);
-        else if (this.aim !== 'none') this.toBase(CLIPS.pistolIdle, 0.3);
-        else this.toBase(CLIPS.idle, 0.3);
-      } else if (sp < 2.4) { this.toBase(CLIPS.walk, 0.3); animSpeed = pc.math.clamp(sp / 1.45, 0.6, 1.5); }
-      else if (sp < 4.6) { this.toBase(CLIPS.jog, 0.25); animSpeed = pc.math.clamp(sp / 3.4, 0.75, 1.35); }
-      else { this.toBase(CLIPS.sprint, 0.25); animSpeed = pc.math.clamp(sp / 5.6, 0.8, 1.3); }
+      else {
+        // gait with hysteresis so speeds near a threshold don't flicker between clips
+        const up = [0.25, 2.6, 4.9], down = [0.1, 2.1, 4.2];
+        let g = this.gait;
+        while (g < 3 && sp > up[g]) g++;
+        while (g > 0 && sp < down[g - 1]) g--;
+        this.gait = g;
+        if (g === 0) {
+          if (this.pose === 'talk') this.toBase(CLIPS.talk, 0.35);
+          else if (this.aim !== 'none') this.toBase(CLIPS.pistolIdle, 0.3);
+          else this.toBase(CLIPS.idle, 0.3);
+        } else if (g === 1) { this.toBase(CLIPS.walk, 0.3); animSpeed = pc.math.clamp(sp / 1.45, 0.6, 1.5); }
+        else if (g === 2) { this.toBase(CLIPS.jog, 0.3); animSpeed = pc.math.clamp(sp / 3.4, 0.75, 1.35); }
+        else { this.toBase(CLIPS.sprint, 0.3); animSpeed = pc.math.clamp(sp / 5.6, 0.8, 1.3); }
+      }
       if (this.injury.leg > 0.2) animSpeed *= 1 - this.injury.leg * 0.25;
       if (!this.oneShot) this.anim.speed = animSpeed;
     }
@@ -595,12 +609,12 @@ export class Humanoid {
     this.upperWeight = 0;
     if (this.upper) this.upper.weight = 0;
     if (wasDown) return;
-    const clip: 'death' | 'knockback' = region === 'torso' && from && Math.random() < 0.55 ? 'knockback' : 'death';
-    this.yaw = this.fallYawAwayFrom(from, clip);
+    void region;
+    this.yaw = this.fallYawAwayFrom(from, 'death');
     this.entity.setLocalEulerAngles(0, this.yaw, 0);
     this.oneShot = null;
     this.holding = false;
-    this.play(clip, 0.1);
+    this.play('death', 0.1);
   }
 
   /** Knocked out: one fall (away from the attacker), then lie still until getUp(). */
@@ -610,11 +624,11 @@ export class Humanoid {
     this.aim = 'none'; this.crouch = false;
     this.upperWeight = 0;
     if (this.upper) this.upper.weight = 0;
-    this.yaw = this.fallYawAwayFrom(from, 'knockback');
+    this.yaw = this.fallYawAwayFrom(from, 'death');
     this.entity.setLocalEulerAngles(0, this.yaw, 0);
     this.oneShot = null;
     this.holding = false;
-    this.play('knockback', 0.1);
+    this.play('death', 0.1);
   }
 
   /** Reset after the player respawns. */

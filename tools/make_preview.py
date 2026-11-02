@@ -51,10 +51,11 @@ after = json.load(open(os.path.join(args.after, 'capture.json')))
 before = json.load(open(os.path.join(args.before, 'capture.json'))) if args.before and os.path.exists(os.path.join(args.before, 'capture.json')) else None
 before_views = {v['name']: v for v in (before or {}).get('views', []) if 'file' in v}
 
+HIT_NAMES = {'hit_flinch', 'hit_repeated', 'death_fall_1', 'death_fall_2', 'death_fall_3', 'knockout', 'knockout_recover'}
 sections = []
 compare = []
 for v in after['views']:
-    if 'file' not in v: continue
+    if 'file' not in v or v['name'] in HIT_NAMES: continue
     img = Image.open(os.path.join(args.after, v['file']))
     item = {'name': v['name'], 'title': v['title'], 'src': save(img, f"{v['name']}.webp"), 'overlay': v.get('overlay', '')}
     if v['name'] in before_views:
@@ -69,13 +70,16 @@ for v in after['views']:
         compare.append({'view': v['name'], 'mean_pixel_change_pct': change})
     sections.append(item)
 
-# hit-reaction frames
+# hit-reaction frames (captured in-sequence by capture_preview.py, else from tests/hits.py)
 hit_frames = []
+for v in after['views']:
+    if v.get('name') in HIT_NAMES and 'file' in v:
+        hit_frames.append({'name': v['name'], 'title': v['title'], 'src': save(Image.open(os.path.join(args.after, v['file'])), f"{v['name']}.webp")})
 for name, title in [('hit_seq_1', 'Repeated hits: flinch (no restart)'), ('hit_seq_2', 'Repeated hits: stagger + reaction'), ('hit_wounded', 'Wounded: clutching / limp'),
                     ('death_seq_1', 'Fatal hits: fall begins (one cross-faded fall)'), ('death_seq_2', 'Falling away from the shooter'), ('death_seq_3', 'Body at rest (held still)'),
                     ('knockdown_1', 'Knocked out: stays down'), ('knockdown_2', 'Recovered after the knock-out ends')]:
     f = os.path.join(args.hits, f'{name}.png')
-    if os.path.exists(f): hit_frames.append({'name': name, 'title': title, 'src': save(Image.open(f), f'{name}.webp')})
+    if os.path.exists(f) and not any(h['name'].startswith(('hit_', 'death_', 'knock')) for h in hit_frames): hit_frames.append({'name': name, 'title': title, 'src': save(Image.open(f), f'{name}.webp')})
 
 # test results from logs
 tests = []

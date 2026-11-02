@@ -13,7 +13,6 @@ Legend: ✅ working & tested · 🟡 partial / placeholder · ⬜ not started.
 - 🟡 Real iPhone performance — not yet measured on a real device
 
 ## Phase A — Combat foundation (branch `phase-a-combat`, preview at detective-rpg-dev.netlify.app)
-- ✅ New characters: Quaternius CC0 humans with painted outfits + hair (replaces Kenney placeholders)
 - ✅ Real motion-captured-style animation clips (UAL1/UAL2): idle, walk, jog, sprint, crouch, talk, drive, kneel, pistol aim/shoot/reload, punches, hook, block, hit reactions, knockback, death, get-up
 - ✅ Pistol (semi-auto, 15-rd) and bolt-action rifle (5-rd, bolt cycling); rifle taken from the cruiser trunk
 - ✅ Over-the-shoulder aiming, ADS zoom, shoulder swap (C), crosshair with live spread
@@ -30,12 +29,23 @@ Legend: ✅ working & tested · 🟡 partial / placeholder · ⬜ not started.
 - ✅ Procedural gunshot/impact/punch/reload sounds (WebAudio)
 - 🟡 Rifle uses the pistol aiming animations (no CC0 rifle clips yet) — looks acceptable but not right
 - 🟡 No strafing clips — aiming while moving plays forward locomotion
-- 🟡 Superhero-proportioned base bodies (the only free option); muscles show through painted clothes
-- 🟡 Bodies don't ragdoll; death uses an animation
 - ⬜ NPC melee attacks against the player (block works only against gunfire damage reduction placeholder)
 - ⬜ Attachments, fire-mode switching, penetration
 - ⬜ Backup officers, calling for help
 - ⬜ Gamepad
+
+## Phase A.1 — Hit reactions + visual pass (branch `phase-a-combat`, v0.3.0)
+- ✅ Characters: 16 Microsoft Rocketbox avatars (MIT) — realistic proportions, modelled clothing, faces, hair; UAL animations retargeted at runtime; LOD meshes + 512 px textures on Low
+- ✅ Hit reactions: spring flinch away from the shot by region (head/torso/arm/leg), rate-limited heavy reaction clip (never restarts under rapid fire), stagger, limp and wound-clutch from injuries
+- ✅ One coherent fall: a fatal hit plays a single fall away from the shooter, the body is held still on the ground, corpses never re-animate
+- ✅ Knock-outs: stay down (even if hit again) until the timer ends, then one get-up
+- ✅ Civilians: panic episodes — pedestrians flee then hide once, staff duck once and stand when it is quiet (no repeated squatting)
+- ✅ Environment: foliage-card trees and hedges (ambientCG leaf scans), bark/cobble/worn-asphalt materials, building cornices, parapets, window jambs and sills, plinths, rooftop units and water tanks, fire escapes, shutters, hydrants, security lights
+- ✅ High preset: SSAO, bloom, ACES grading, vignette (CameraFrame); car paint clear coat, glass, emissive lamps
+- ✅ Review kit: `/health.json` (version + commit), `/preview/` page with screenshots, before/after comparisons, test results, performance numbers (mirrored in `docs/preview/`)
+- 🟡 No physics ragdoll (kept off for iPhone cost); falls are animated and turned away from the shooter
+- 🟡 Vehicles are still the Kenney low-poly models (better materials only) — no suitable free realistic cars found
+- 🟡 All testing in headless Chrome with software rendering — real iPhone frame rates not yet measured
 
 ## Phases B–E
 - ⬜ Not started (see MASTER_DESIGN.md)
