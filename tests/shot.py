@@ -14,6 +14,7 @@ VIEWS = [
     # name, player x, z, cam yaw, pitch, dist
     ('start', None, None, None, None, None),
     ('street_east', 4, -2, 250, -10, 6),
+    ('mobile_cafe', 16, -3, 335, -9, 4.5),
     ('cafe_front', 18, -4, 180 + 180, -8, 5),
     ('cafe_inside', 18, -13, 180 + 180, -12, 3.5),
     ('alley', 27.5, -12, 0 + 180 + 180, -18, 4),
@@ -31,7 +32,8 @@ def log_errors(logs):
 with sync_playwright() as p:
     b = p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
     if mobile:
-        ctx = b.new_context(viewport={'width': 852, 'height': 393}, device_scale_factor=1, is_mobile=True, has_touch=True)
+        ctx = b.new_context(viewport={'width': 852, 'height': 393}, device_scale_factor=1, is_mobile=True, has_touch=True,
+                            user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1')
     else:
         ctx = b.new_context(viewport={'width': 960, 'height': 540}, device_scale_factor=1)
     page = ctx.new_page()
