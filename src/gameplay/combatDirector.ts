@@ -102,18 +102,24 @@ export class CombatDirector {
       && this.ai.lineOfSight(new pc.Vec3(n.x, n.y + 1.6, n.z), new pc.Vec3(at.x, at.y + 1.2, at.z)));
   }
 
-  incident(type: IncidentType, at: pc.Vec3, subject?: Npc, cooldownKey?: string) {
+  /** Ordinary people (not suspects or hostiles) who can see a spot. */
+  civilianWitnesses(at: pc.Vec3, range = 22): Npc[] {
+    return this.witnesses(at).filter((n) => n.isCivilian && Math.hypot(n.x - at.x, n.z - at.z) < range);
+  }
+
+  incident(type: IncidentType, at: pc.Vec3, subject?: Npc, cooldownKey?: string, witnessedOverride?: boolean) {
     const key = cooldownKey ?? `${type}:${subject?.id ?? ''}`;
     if ((this.incidentCooldown.get(key) ?? -99) > this.t) return;
     this.incidentCooldown.set(key, this.t + 8);
-    const witnessed = this.witnesses(at, subject).length > 0;
+    const witnessed = witnessedOverride ?? this.witnesses(at, subject).length > 0;
     const { label, escalation } = this.standing.record(type, witnessed, subject?.name);
     // keep the case-dialogue reputation roughly in step with public trust
     const s = this.g.state;
     if (['killed_civilian', 'shot_civilian', 'killed_surrendered', 'killed_unarmed_suspect'].includes(type)) s.reputation = Math.max(-10, s.reputation - 3);
     else if (['assault_civilian', 'shot_surrendered', 'shot_unarmed_suspect', 'excessive_force'].includes(type)) s.reputation = Math.max(-10, s.reputation - 1);
     else if (type === 'nonlethal_arrest') s.reputation = Math.min(10, s.reputation + 1);
-    this.g.hud.toast(escalation ? `⚠ ${escalation}` : `${type === 'justified_shooting' || type === 'nonlethal_arrest' || type === 'good_arrest' ? '📋' : '⚠'} ${label}`, escalation ? 4200 : 3000);
+    const good = ['justified_shooting', 'nonlethal_arrest', 'good_arrest', 'refused_bribe', 'drug_bust'].includes(type);
+    this.g.hud.toast(escalation ? `⚠ ${escalation}` : `${good ? '📋' : '⚠'} ${label}`, escalation ? 4200 : 3000);
     if (this.standing.suspended) this.player.disabledFirearms = true;
   }
 
@@ -192,6 +198,8 @@ export class CombatDirector {
         if (wasSurrendered) this.incident(outcome === 'killed' ? 'killed_surrendered' : 'shot_surrendered', at, n);
         else if (!wasArmed && !n.threatened) this.incident(outcome === 'killed' ? 'killed_unarmed_suspect' : 'shot_unarmed_suspect', at, n);
         else if (outcome === 'killed') this.incident('justified_shooting', at, n);
+      } else if (n.def.kind === 'suspect') {
+        this.incident(outcome === 'killed' ? 'killed_unarmed_suspect' : 'shot_unarmed_suspect', at, n);
       } else {
         this.incident(outcome === 'killed' ? 'killed_civilian' : 'shot_civilian', at, n);
         if (outcome !== 'killed') n.flee(g.player.pos);
@@ -210,7 +218,10 @@ export class CombatDirector {
     const outcome = n.damage(dmg * (strong ? 1.3 : 1), 'melee', 'player', strong ? 'head' : 'torso', pp);
     if (strong && outcome === 'hurt' && n.consciousness < 45) n.knockOut(8, pp);
     if (restrained) this.incident('excessive_force', n.pos, n);
-    else if (!n.hostile) {
+    else if (n.def.kind === 'suspect') {
+      // stopping a running suspect is reasonable force; hitting a calm one is not
+      if (n.state !== 'evade' && n.state !== 'flee') this.incident('excessive_force', n.pos, n);
+    } else if (!n.hostile) {
       this.incident('assault_civilian', n.pos, n);
       if (n.state !== 'down') n.flee(g.player.pos);
     } else this.ai.alert(n);
@@ -253,6 +264,7 @@ export class CombatDirector {
   canTakedown(n: Npc): boolean {
     if (!n.alive || n.state === 'down' || n.state === 'cuffed' || n.state === 'jailed' || n.state === 'inCar') return false;
     const recentlyHit = performance.now() / 1000 - n.lastHitAt < 1.6;
+    if (n.def.kind === 'suspect') return n.state === 'evade' || n.state === 'flee';
     return n.hostile && (recentlyHit || n.state === 'surrender' || n.consciousness < 60 || (!n.armed && n.state === 'combat'));
   }
 

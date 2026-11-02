@@ -267,19 +267,29 @@ export class Hud {
   openNotebook(s: GameState, obj: Objective) {
     this.modalOpen = true;
     const body = this.notebook.querySelector('.body')!;
-    const ev = (Object.keys(EVIDENCE) as EvidenceId[]).map((id) => {
+    const item = (id: EvidenceId) => {
       const d = EVIDENCE[id];
       const has = s.has(id);
-      if (!has && id === 'bag') return '';
       return `<div class="ev-item ${has ? '' : 'missing'}"><span class="tag">${has ? d.icon : '·'}</span><div><b>${has ? d.name : 'Unknown'}</b>${has ? d.desc : '<i>Not yet found.</i>'}</div></div>`;
-    }).join('');
+    };
+    const first = s.caseEvidence('9-114').filter((id) => id !== 'bag' || s.has(id)).map(item).join('');
+    const drugIds = s.caseEvidence('9-201');
+    const drugFound = drugIds.filter((id) => s.has(id));
+    const drugOpen = s.flag('drugCaseOpen') || drugFound.length > 0;
+    const drug = drugOpen ? `
+      <h3>Case 9-201 — Corner Business${s.flag('drugCaseClosed') ? ' · CLOSED' : s.flag('dealerBribed') ? ' · COMPROMISED' : ''}</h3>
+      <div class="task">Dealing on the Harbor Flats corner, east end of Main St. Watch for a sale or make a controlled buy before you search anyone.</div>
+      ${drugFound.map(item).join('')}
+      ${drugFound.length < drugIds.length ? `<div class="task" style="color:var(--muted)">More to uncover.</div>` : ''}` : '';
     const arrests = s.arrests.map((a) => `<div class="task">${a.npcId} — ${a.outcome}</div>`).join('') || '<div class="task" style="color:var(--muted)">None yet.</div>';
     body.innerHTML = `
       <h3>Current lead</h3><div class="case-paper"><b>${obj.title}</b><br>${obj.text}${obj.where ? `<br><i>${obj.where}</i>` : ''}</div>
-      <h3>Case 9-114 — The Night Drop</h3>
+      <h3>Case 9-114 — The Night Drop${s.flag('caseClosed') ? ' · CLOSED' : ''}</h3>
       <div class="task">Victim: Rosa Alvarez, owner of Café Luna. $3,200 deposit bag taken ~5:40 PM in the alley by the bank.</div>
-      <h3>Evidence & statements (${s.evidence.size})</h3>${ev}
+      ${first}
+      ${drug}
       <h3>Arrests</h3>${arrests}
+      <h3>Money</h3><div class="task">Cash on hand: $${s.money.toLocaleString()}${s.buyMoney ? ` · Marked buy money: $${s.buyMoney}` : ''}</div>
       <h3>Standing</h3>${this.standingHtml ? this.standingHtml() : `<div class="task">Reputation: ${s.reputation}</div>`}`;
     this.notebook.classList.add('show');
   }

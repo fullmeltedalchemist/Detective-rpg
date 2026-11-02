@@ -89,7 +89,12 @@ function okafor(name: string, ctx: CaseCtx): DialogueNode {
     return { speaker: name, role, text: 'Detective. Good, you\'re here. We\'ve got a fresh one on your desk.', choices: [{ label: 'What happened?', next: brief }] };
   }
   const hints: string[] = [];
-  if (!s.flag('metRosa')) hints.push('Rosa\'s at the café, across Main.');
+  if (s.flag('caseClosed')) {
+    if (!s.flag('drugCaseOpen')) hints.push('Good work on Rosa\'s case. Delgado\'s out front — he\'s got a corner problem at Harbor Flats that needs a detective.');
+    else if (s.flag('drugCaseClosed')) hints.push('Brooks is in a cell and the ledger\'s with the lab. Quiet week, for once.');
+    else if (s.flag('dealerBribed')) hints.push('Residents are still calling about the Flats corner. Strange — I thought you were on that.');
+    else hints.push('How\'s the Flats corner? Remember: see it, then search it. Not the other way round.');
+  } else if (!s.flag('metRosa')) hints.push('Rosa\'s at the café, across Main.');
   else if (!s.has('footage')) hints.push('The bank has a camera covering that alley. Get the footage.');
   else hints.push('You\'ve got footage. Match it to someone and bring them in.');
   return {
@@ -245,6 +250,8 @@ function civilian(npcId: string, name: string, ctx: CaseCtx): DialogueNode {
   const s = ctx.state;
   const idx = (npcId.charCodeAt(npcId.length - 1) + s.evidence.size) % CIV_LINES.length;
   let text = CIV_LINES[idx];
+  if (s.flag('dealerBribed') && idx % 2 === 0) text = 'Dealing\'s back on the Flats corner. Cops drive right past. Makes you wonder.';
+  else if (s.flag('drugCaseClosed') && idx % 2 === 0) text = 'The corner by the Flats is finally quiet. My kids can walk home that way again.';
   if (s.reputation <= -3) text = 'Keep your distance. I saw what you did to that innocent guy.';
   else if (s.reputation >= 4 && s.flag('caseClosed')) text = 'Thanks for catching that thief, detective. Feels safer already.';
   return { speaker: name, role: 'Resident', text, choices: [...arrestChoice(ctx, npcId, name), leave()] };

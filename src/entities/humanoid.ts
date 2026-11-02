@@ -150,6 +150,8 @@ export class Humanoid {
   /** Diagnostics for tests: how many times each clip was started. */
   readonly clipStarts: Record<string, number> = {};
   private holding = false;
+  /** What this character does when standing around (loitering, on the phone). */
+  idleStyle: 'plain' | 'foldArms' | 'phone' = 'plain';
   /** Lying still: the skeleton pose captured when the fall finished, re-applied every frame
    * with the AnimComponent switched off (no re-evaluation, no flicker, no animation cost). */
   private frozen: { n: pc.GraphNode; p: pc.Vec3; r: pc.Quat }[] | null = null;
@@ -504,6 +506,8 @@ export class Humanoid {
         if (g === 0) {
           if (this.pose === 'talk') this.toBase(CLIPS.talk, 0.35);
           else if (this.aim !== 'none') this.toBase(CLIPS.pistolIdle, 0.3);
+          else if (this.idleStyle === 'foldArms' && this.pose === 'normal') this.toBase(CLIPS.foldArms, 0.4);
+          else if (this.idleStyle === 'phone' && this.pose === 'normal') this.toBase(CLIPS.phone, 0.4);
           else this.toBase(CLIPS.idle, 0.3);
         } else if (g === 1) { this.toBase(CLIPS.walk, 0.3); animSpeed = pc.math.clamp(sp / 1.45, 0.6, 1.5); }
         else if (g === 2) { this.toBase(CLIPS.jog, 0.3); animSpeed = pc.math.clamp(sp / 3.4, 0.75, 1.35); }
