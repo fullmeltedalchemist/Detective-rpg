@@ -90,12 +90,12 @@ export class PlayerCombat {
     this.equip(list[(i + 1) % list.length]);
   }
 
-  hurt(amount: number, from?: pc.Vec3) {
+  hurt(amount: number, from?: pc.Vec3, region: import('../entities/humanoid').HitRegion = 'torso') {
     if (!this.alive) return;
     if (this.blocking && !from) amount *= 0.3;
     this.hp = Math.max(0, this.hp - amount);
     this.lastHurt = this.t;
-    if (this.hp > 0) this.human.play(Math.random() < 0.5 ? 'hitChest' : 'hitHead');
+    if (this.hp > 0) this.human.hit(region, Math.min(1, amount / 40), from ?? null);
   }
 
   heal() { this.hp = this.maxHp; this.stamina = 100; }

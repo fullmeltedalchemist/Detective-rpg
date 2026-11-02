@@ -26,8 +26,25 @@ const MODELS = [
   'wooden_crate_01', 'standing_chalkboard_01', 'hanging_picture_frame_01', 'wall_clock', 'plastic_monobloc_chair_01', 'shrub_03',
   'service_pistol', 'bolt_action_rifle_7_62', 'wooden_military_crate', 'concrete_road_barrier_02', 'metal_jerrycan', 'old_tyre', 'plastic_crate_01',
 ];
-const HUMANS = ['hero_m', 'hero_f', 'hair_simpleparted', 'hair_buzzed', 'hair_beard', 'hair_long', 'hair_buns'];
-const OUTFITS = ['detective', 'okafor', 'rosa', 'nina', 'dale', 'victor', 'civ_m1', 'civ_f1', 'civ_f2', 'thug1', 'thug2', 'lookout', 'officer_m'];
+/** Microsoft Rocketbox avatars (MIT) used in this build, with their texture prefixes. */
+export const AVATARS: Record<string, { prefix: string; parts: string[] }> = {
+  Business_Male_03: { prefix: 'm020', parts: ['body', 'head', 'opacity'] },
+  Business_Male_01: { prefix: 'm005', parts: ['body', 'head', 'opacity'] },
+  Business_Male_04: { prefix: 'm015', parts: ['body', 'head'] },
+  Business_Female_01: { prefix: 'f014', parts: ['body', 'head', 'opacity'] },
+  Security_Female_01: { prefix: 'f170', parts: ['body', 'head', 'pistol', 'hat'] },
+  Police_Male_01: { prefix: 'm220', parts: ['body', 'head', 'equipment', 'pistol'] },
+  Male_Adult_03: { prefix: 'm004', parts: ['body', 'head', 'opacity'] },
+  Male_Adult_06: { prefix: 'm011', parts: ['body', 'head', 'opacity'] },
+  Male_Adult_08: { prefix: 'm014', parts: ['body', 'head', 'opacity'] },
+  Male_Adult_09: { prefix: 'm017', parts: ['body', 'head', 'opacity'] },
+  Male_Adult_16: { prefix: 'm019', parts: ['body', 'head'] },
+  Male_Adult_20: { prefix: 'm027', parts: ['body', 'head'] },
+  Female_Adult_01: { prefix: 'f001', parts: ['body', 'head', 'opacity'] },
+  Female_Adult_04: { prefix: 'f004', parts: ['body', 'head', 'opacity'] },
+  Female_Adult_08: { prefix: 'f008', parts: ['body', 'head', 'opacity'] },
+  Female_Adult_11: { prefix: 'f011', parts: ['body', 'head', 'opacity'] },
+};
 const HDRI = 'qwantani_late_afternoon_puresky';
 export const BUILD_ID = `v0.2.0-phaseA · ${import.meta.env.MODE}`;
 
@@ -113,11 +130,16 @@ export class Game {
     queueSurfaceTextures(this.assets, this.q);
     this.assets.hdr('sky', `assets/env/${HDRI}.hdr`);
     for (const m of MODELS) this.assets.model(m, `assets/models/${m}.glb`);
-    for (const h of HUMANS) this.assets.model(h, `assets/humans/${h}.glb`);
     for (const a of ['ual1', 'ual2']) this.assets.model(a, `assets/anims/${a}.glb`);
-    for (const o of OUTFITS) {
-      this.assets.texture(`outfit:${o}_diff`, `assets/humans/outfits/${o}_diff.webp`, true);
-      this.assets.texture(`outfit:${o}_nor`, `assets/humans/outfits/${o}_nor.webp`, false);
+    const lod = this.q.level === 'low';
+    const tier = this.q.level === 'high' ? '1024' : '512';
+    for (const [key, av] of Object.entries(AVATARS)) {
+      this.assets.model(`rb:${key}${lod ? '_lod' : ''}`, `assets/humans/rb/${key}${lod ? '_lod' : ''}.glb`);
+      for (const part of av.parts) {
+        const stem = `${av.prefix}_${part}`;
+        this.assets.texture(`rbt:${tier}/${stem}_color`, `assets/humans/rb/tex/${tier}/${stem}_color.webp`, true);
+        if (part !== 'opacity') this.assets.texture(`rbt:512/${stem}_normal`, `assets/humans/rb/tex/512/${stem}_normal.webp`, false);
+      }
     }
     app.start();
     await this.assets.loadAll((p, label) => this.hud.setLoading(0.05 + p * 0.85, `Loading ${label}…`));
@@ -206,9 +228,10 @@ export class Game {
     const A = this.refs.anchors;
 
     this.anims = new AnimLibrary(this.assets);
-    const human = (look: HumanLook, name: string) => new Humanoid(this.assets, this.anims, look, name);
+    const human = (look: HumanLook, name: string) => new Humanoid(this.assets, this.anims, look, name,
+      { lod: this.q.level === 'low', texTier: this.q.level === 'high' ? '1024' : '512' });
     // ---- Player ----
-    const pc0 = human({ body: 'm', outfit: 'detective', hair: ['hair_simpleparted'], hairTint: [0.55, 0.42, 0.32] }, 'detective');
+    const pc0 = human({ body: 'm', outfit: 'detective', avatar: 'Business_Male_03' }, 'detective');
     root.addChild(pc0.entity);
     this.player = new Player(pc0, this.world);
     this.player.place(A.stationSpawn.x, A.stationSpawn.z, 180);
@@ -235,14 +258,18 @@ export class Game {
 
     // ---- NPCs ----
     const defs: NpcDef[] = [
-      { id: 'okafor', name: 'Sgt. Dana Okafor', role: 'Desk sergeant', look: { body: 'f', outfit: 'okafor', hair: ['hair_buns'], hairTint: [0.25, 0.2, 0.18] }, home: [A.sergeant.x, A.sergeant.z, 180], stationary: true, kind: 'staff' },
-      { id: 'rosa', name: 'Rosa Alvarez', role: 'Café owner', look: { body: 'f', outfit: 'rosa', hair: ['hair_long'], hairTint: [0.5, 0.32, 0.22] }, home: [A.rosa.x, A.rosa.z, 0], stationary: true, kind: 'staff' },
-      { id: 'nina', name: 'Nina Park', role: 'Bank teller', look: { body: 'f', outfit: 'nina', hair: ['hair_long'], hairTint: [0.16, 0.13, 0.12] }, home: [A.nina.x, A.nina.z, 0], stationary: true, kind: 'staff' },
-      { id: 'dale', name: 'Dale Mercer', role: 'Bus stop regular', look: { body: 'm', outfit: 'dale', hair: ['hair_buzzed'], hairTint: [0.75, 0.55, 0.38] }, home: [A.busStop.x + 0.8, A.busStop.z + 0.6, 0], route: [[-22, -7.3], [-17, -7.4], [-19.5, -6.6]], kind: 'civilian' },
-      { id: 'victor', name: 'Victor Lane', role: 'Can collector', look: { body: 'm', outfit: 'victor', hair: ['hair_buzzed', 'hair_beard'], hairTint: [0.3, 0.26, 0.24] }, home: [A.parkBench.x, A.parkBench.z + 0.9, 180], route: [[-26, -23], [-26, -16], [-30, -14], [-22, -14], [-26, -20]], kind: 'civilian' },
-      { id: 'civ1', name: 'Marisol Reyes', role: 'Resident', look: { body: 'f', outfit: 'civ_f1', hair: ['hair_buns'], hairTint: [0.2, 0.15, 0.12] }, home: [-40, -7, 90], route: [[-40, -7], [-12, -7], [-7, -20], [-7, -7], [-40, -7.2]], kind: 'civilian' },
-      { id: 'civ2', name: 'June Hollis', role: 'Resident', look: { body: 'f', outfit: 'civ_f2', hair: ['hair_long'], hairTint: [1.0, 0.85, 0.6] }, home: [40, 7, -90], route: [[58, 7.2], [12, 7.2], [7, 20], [7, 7], [58, 7]], kind: 'civilian' },
-      { id: 'civ3', name: 'Marcus Hale', role: 'Resident', look: { body: 'm', outfit: 'civ_m1', hair: ['hair_simpleparted'], hairTint: [0.22, 0.18, 0.16] }, home: [60, -7, -90], route: [[64, -7.1], [31, -7.1], [10, -7.1], [31, -7]], kind: 'civilian' },
+      { id: 'okafor', name: 'Sgt. Dana Okafor', role: 'Desk sergeant', look: { body: 'f', outfit: 'okafor', avatar: 'Security_Female_01' }, home: [A.sergeant.x, A.sergeant.z, 180], stationary: true, kind: 'staff' },
+      { id: 'rosa', name: 'Rosa Alvarez', role: 'Café owner', look: { body: 'f', outfit: 'rosa', avatar: 'Female_Adult_04' }, home: [A.rosa.x, A.rosa.z, 0], stationary: true, kind: 'staff' },
+      { id: 'nina', name: 'Nina Park', role: 'Bank teller', look: { body: 'f', outfit: 'nina', avatar: 'Business_Female_01' }, home: [A.nina.x, A.nina.z, 0], stationary: true, kind: 'staff' },
+      { id: 'dale', name: 'Dale Mercer', role: 'Bus stop regular', look: { body: 'm', outfit: 'dale', avatar: 'Male_Adult_06' }, home: [A.busStop.x + 0.8, A.busStop.z + 0.6, 0], route: [[-22, -7.3], [-17, -7.4], [-19.5, -6.6]], kind: 'civilian' },
+      { id: 'victor', name: 'Victor Lane', role: 'Can collector', look: { body: 'm', outfit: 'victor', avatar: 'Male_Adult_03' }, home: [A.parkBench.x, A.parkBench.z + 0.9, 180], route: [[-26, -23], [-26, -16], [-30, -14], [-22, -14], [-26, -20]], kind: 'civilian' },
+      { id: 'civ1', name: 'Marisol Reyes', role: 'Resident', look: { body: 'f', outfit: 'civ_f1', avatar: 'Female_Adult_01' }, home: [-40, -7, 90], route: [[-40, -7], [-12, -7], [-7, -20], [-7, -7], [-40, -7.2]], kind: 'civilian' },
+      { id: 'civ2', name: 'June Hollis', role: 'Resident', look: { body: 'f', outfit: 'civ_f2', avatar: 'Female_Adult_08' }, home: [40, 7, -90], route: [[58, 7.2], [12, 7.2], [7, 20], [7, 7], [58, 7]], kind: 'civilian' },
+      { id: 'civ3', name: 'Marcus Hale', role: 'Resident', look: { body: 'm', outfit: 'civ_m1', avatar: 'Male_Adult_08' }, home: [60, -7, -90], route: [[64, -7.1], [31, -7.1], [10, -7.1], [31, -7]], kind: 'civilian' },
+      { id: 'civ4', name: 'Leon Brandt', role: 'Resident', look: { body: 'm', outfit: 'civ', avatar: 'Business_Male_01' }, home: [-50, 7, 90], route: [[-50, 7.2], [-12, 7.2], [-7, 24], [-7, 8], [-50, 7]], kind: 'civilian' },
+      { id: 'civ5', name: 'Grace Whitlock', role: 'Resident', look: { body: 'f', outfit: 'civ', avatar: 'Female_Adult_11' }, home: [8, -30, 0], route: [[7.2, -30], [7.2, -8], [40, -7.2], [7.2, -7.4], [7.2, -30]], kind: 'civilian' },
+      { id: 'civ6', name: 'Owen Price', role: 'Resident', look: { body: 'm', outfit: 'civ', avatar: 'Business_Male_04' }, home: [66, 7.2, -90], route: [[66, 7.2], [40, 7.3], [12, 7.2], [40, 7.1]], kind: 'civilian' },
+      { id: 'officer1', name: 'Ofc. Sam Delgado', role: 'Patrol officer', look: { body: 'm', outfit: 'officer', avatar: 'Police_Male_01' }, home: [27.5, 6.2, 200], stationary: true, kind: 'staff' },
       ...ENCOUNTER_NPCS,
     ];
     for (const d of defs) {

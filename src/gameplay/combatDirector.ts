@@ -29,6 +29,7 @@ export class CombatDirector {
   private incidentCooldown = new Map<string, number>();
   private t = 0;
   private hurtFlash = 0;
+  private lastPlayerHitFrom: pc.Vec3 | null = null;
   private playerDownAt = -1;
   encounterState: 'dormant' | 'active' | 'resolved' = 'dormant';
   private publicDischargeCd = 0;
@@ -135,12 +136,12 @@ export class CombatDirector {
       if (n.hostile || !n.alive || n.def.stationary) continue;
       const d = Math.hypot(n.x - at.x, n.z - at.z);
       if (d > radius) continue;
-      if (d < 12) n.cower(at); else n.flee(at);
+      n.alarm(at, 'flee');
     }
     // staff behind counters duck
     for (const n of this.g.npcs) {
       if (!n.def.stationary || n.hostile || !n.alive || n.state === 'talking') continue;
-      if (Math.hypot(n.x - at.x, n.z - at.z) < 20) n.cower(at);
+      if (Math.hypot(n.x - at.x, n.z - at.z) < 20) n.alarm(at, 'duck');
     }
   }
 
@@ -169,8 +170,12 @@ export class CombatDirector {
     if (hit.kind === 'world') { this.sfx.impact(g.player.pos.distance(hit.point)); return; }
     const dmg = Ballistics.damageFor(p, hit);
     const tgt = hit.target!;
+    // where the shot came from (a few metres back along the bullet's path)
+    const sp = p.vel.length() || 1;
+    const from = new pc.Vec3(hit.point.x - (p.vel.x / sp) * 6, hit.point.y, hit.point.z - (p.vel.z / sp) * 6);
     if (tgt.id === 'player') {
-      this.player.hurt(dmg);
+      this.lastPlayerHitFrom = from;
+      this.player.hurt(dmg, from, hit.region);
       this.hurtFlash = 1;
       return;
     }
@@ -178,7 +183,7 @@ export class CombatDirector {
     if (!n) return;
     const wasSurrendered = n.state === 'surrender' || n.state === 'cuffed';
     const wasArmed = !!n.armed;
-    const outcome = n.damage(dmg, 'bullet', p.owner, hit.region);
+    const outcome = n.damage(dmg, 'bullet', p.owner, hit.region, from);
     if (p.owner === 'player') {
       this.player.hitMarker = 0.18;
       this.ai.alert(n);
@@ -201,8 +206,9 @@ export class CombatDirector {
   private onMelee(n: Npc, dmg: number, strong: boolean) {
     const g = this.g;
     const restrained = n.state === 'cuffed' || n.state === 'surrender' || n.state === 'down';
-    const outcome = n.damage(dmg * (strong ? 1.3 : 1), 'melee', 'player');
-    if (strong && outcome === 'hurt' && n.consciousness < 45) n.knockOut(8);
+    const pp = g.player.pos;
+    const outcome = n.damage(dmg * (strong ? 1.3 : 1), 'melee', 'player', strong ? 'head' : 'torso', pp);
+    if (strong && outcome === 'hurt' && n.consciousness < 45) n.knockOut(8, pp);
     if (restrained) this.incident('excessive_force', n.pos, n);
     else if (!n.hostile) {
       this.incident('assault_civilian', n.pos, n);
@@ -240,7 +246,7 @@ export class CombatDirector {
     this.player.human.play('punchCross');
     this.sfx.thud(0.8);
     const surrendered = n.state === 'surrender';
-    n.knockOut(10);
+    n.knockOut(10, this.g.player.pos);
     if (surrendered) this.incident('excessive_force', n.pos, n);
   }
 
@@ -276,7 +282,7 @@ export class CombatDirector {
       const t = this.player.aimTarget;
       if (t && t.id !== 'player') {
         const n = g.npc(t.id);
-        if (n && !n.hostile && n.alive && n.state !== 'cower' && n.state !== 'flee' && Math.hypot(n.x - g.player.x, n.z - g.player.z) < 20) n.cower(g.player.pos);
+        if (n && !n.hostile && n.alive && Math.hypot(n.x - g.player.x, n.z - g.player.z) < 20) n.alarm(g.player.pos, n.def.stationary ? 'duck' : 'flee');
       }
     }
     this.ai.update(dt, g.npcs);
@@ -301,7 +307,7 @@ export class CombatDirector {
     // Player down → respawn
     if (!this.player.alive && this.playerDownAt < 0) {
       this.playerDownAt = this.t;
-      g.player.character.die();
+      g.player.character.die(this.lastPlayerHitFrom, 'torso');
       g.player.frozen = true;
       g.hud.toast('You are down. Officer needs assistance…', 3000);
     }

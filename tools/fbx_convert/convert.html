@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>fbx convert</title>
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }</script>
+</head>
+<body>
+<script type="module">
+// Converts a Rocketbox FBX to GLB using three.js FBXLoader + GLTFExporter (no native binaries).
+// Textures are attached later by tools/pack_rocketbox.mjs; here we keep geometry, skin, bones and material names.
+import * as THREE from 'three';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+window.convert = async (url) => {
+  const manager = new THREE.LoadingManager();
+  manager.setURLModifier((u) => (/\.(tga|png|jpg|jpeg|dds)$/i.test(u) ? 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=' : u));
+  const obj = await new FBXLoader(manager).loadAsync(url);
+  const info = { meshes: [], bones: [], materials: [] };
+  obj.traverse((o) => {
+    if (o.isSkinnedMesh || o.isMesh) {
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats) { m.map = null; m.normalMap = null; m.specularMap = null; m.alphaMap = null; m.bumpMap = null; info.materials.push(m.name); }
+      info.meshes.push({ name: o.name, skinned: !!o.isSkinnedMesh, verts: o.geometry.attributes.position.count, groups: o.geometry.groups.length, mats: mats.map((m) => m.name) });
+    }
+    if (o.isBone) info.bones.push(o.name);
+  });
+  const box = new THREE.Box3().setFromObject(obj);
+  info.bounds = [box.min.toArray(), box.max.toArray()];
+  const glb = await new GLTFExporter().parseAsync(obj, { binary: true, onlyVisible: false, animations: [] });
+  const bytes = new Uint8Array(glb);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return { info, b64: btoa(bin) };
+};
+window.ready = true;
+</script>
+</body>
+</html>

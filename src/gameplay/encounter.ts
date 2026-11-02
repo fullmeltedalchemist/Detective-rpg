@@ -13,11 +13,11 @@ import { FLOOR_Y } from '../world/building';
 export const ENCOUNTER_ZONE = { x0: -48, x1: -9, z0: 22.5, z1: 33.5 };
 
 export const ENCOUNTER_NPCS: NpcDef[] = [
-  { id: 'thug1', name: 'Ray Kessler', role: 'Armed suspect', look: { body: 'm', outfit: 'thug1', hair: ['hair_buzzed'], hairTint: [0.25, 0.2, 0.17] },
+  { id: 'thug1', name: 'Ray Kessler', role: 'Armed suspect', look: { body: 'm', outfit: 'thug1', avatar: 'Male_Adult_09' },
     home: [-22.5, 27.8, 90], stationary: true, kind: 'hostile', armed: 'pistol', courage: 0.55, accuracy: 0.45 },
-  { id: 'thug2', name: 'Andre Voss', role: 'Armed suspect', look: { body: 'm', outfit: 'thug2', hair: ['hair_simpleparted', 'hair_beard'], hairTint: [0.12, 0.1, 0.09] },
+  { id: 'thug2', name: 'Andre Voss', role: 'Armed suspect', look: { body: 'm', outfit: 'thug2', avatar: 'Male_Adult_20' },
     home: [-27, 30.6, 110], stationary: true, kind: 'hostile', armed: 'pistol', courage: 0.75, accuracy: 0.55 },
-  { id: 'lookout', name: 'Tommy Reyes', role: 'Lookout', look: { body: 'm', outfit: 'lookout', hair: ['hair_buzzed'], hairTint: [0.3, 0.22, 0.15] },
+  { id: 'lookout', name: 'Tommy Reyes', role: 'Lookout', look: { body: 'm', outfit: 'lookout', avatar: 'Male_Adult_16' },
     home: [-14.5, 25.2, 90], stationary: true, kind: 'hostile', courage: 0.2, accuracy: 0.3 },
 ];
 

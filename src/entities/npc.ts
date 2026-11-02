@@ -1,11 +1,11 @@
 import * as pc from 'playcanvas';
-import { lerpAngle, yawTowards, type Humanoid } from './humanoid';
+import { lerpAngle, yawTowards, type Humanoid, type HitRegion } from './humanoid';
 import type { CollisionWorld } from '../world/collision';
 import type { WeaponId } from '../combat/weapons';
 
 export type NpcState =
   | 'idle' | 'wander' | 'talking' | 'flee' | 'cuffed' | 'inCar' | 'jailed' | 'goto' | 'watch'
-  | 'combat' | 'surrender' | 'dead' | 'down' | 'cower';
+  | 'combat' | 'surrender' | 'dead' | 'down' | 'cower' | 'recover' | 'hide';
 
 const res = { x: 0, z: 0, hit: false, nx: 0, nz: 0 };
 
@@ -39,6 +39,11 @@ export class Npc {
   private fleeFrom: pc.Vec3 | null = null;
   private onArrive: (() => void) | null = null;
   private downTimer = 0;
+  /** Panic: civilians keep reacting until this game-time passes with no new threats. */
+  private panicUntil = -1;
+  private clock = 0;
+  private threat: pc.Vec3 | null = null;
+  private afterRecover: NpcState = 'idle';
 
   // ---- combat ----
   hp = 100;
@@ -89,17 +94,32 @@ export class Npc {
     this.character.setPosition(x, this.y, z);
   }
 
-  flee(from: pc.Vec3) {
-    if (['cuffed', 'inCar', 'jailed', 'talking', 'dead', 'down', 'surrender', 'combat'].includes(this.state)) return;
-    this.fleeFrom = from.clone();
-    this.setState('flee');
+  private get unavailable() {
+    return ['cuffed', 'inCar', 'jailed', 'dead', 'down', 'recover', 'surrender', 'combat'].includes(this.state);
   }
 
-  cower(from: pc.Vec3) {
-    if (['cuffed', 'inCar', 'jailed', 'dead', 'down', 'surrender', 'combat'].includes(this.state)) return;
+  /**
+   * Civilian reaction to danger. Each panic episode picks ONE response and then only
+   * extends it on further gunshots — no crouch/stand/crouch cycling:
+   *  - staff (behind counters) duck and stay down;
+   *  - pedestrians run away, then take cover (crouch) once they are clear;
+   *  - anyone with nowhere to go (very close to the danger) drops and covers.
+   */
+  alarm(from: pc.Vec3, mode: 'flee' | 'duck' = 'flee') {
+    if (this.unavailable) return;
+    this.threat = from.clone();
     this.fleeFrom = from.clone();
-    this.setState('cower');
+    const was = this.panicUntil > this.clock;
+    this.panicUntil = this.clock + 7;
+    if (was && (this.state === 'flee' || this.state === 'cower' || this.state === 'hide')) return; // keep current response
+    if (this.state === 'talking') this.character.pose = 'normal';
+    if (this.def.stationary || mode === 'duck') this.setState('cower');
+    else this.setState('flee');
   }
+
+  flee(from: pc.Vec3) { this.alarm(from, 'flee'); }
+  cower(from: pc.Vec3) { this.alarm(from, this.def.stationary ? 'duck' : 'flee'); }
+  get panicking() { return this.panicUntil > this.clock; }
 
   surrender() {
     if (!this.alive || this.state === 'cuffed' || this.state === 'jailed') return;
@@ -111,7 +131,7 @@ export class Npc {
   }
 
   /** Apply damage. Returns 'killed' | 'downed' | 'hurt'. */
-  damage(amount: number, kind: 'bullet' | 'melee', by: string, region: 'head' | 'torso' | 'limb' = 'torso'): 'killed' | 'downed' | 'hurt' | 'none' {
+  damage(amount: number, kind: 'bullet' | 'melee', by: string, region: HitRegion = 'torso', from: pc.Vec3 | null = null): 'killed' | 'downed' | 'hurt' | 'none' {
     if (!this.alive) return 'none';
     this.lastHurtBy = by;
     this.lastHitAt = performance.now() / 1000;
@@ -124,29 +144,38 @@ export class Npc {
     if (this.hp <= 0) {
       this.hp = 0;
       this.setState('dead');
-      this.character.die();
+      this.character.die(from, region);
       if (this.armed && this.dropWeapon) this.dropWeapon();
       this.armed = null;
       return 'killed';
     }
-    if (this.consciousness <= 0 || (kind === 'melee' && this.state === 'down')) {
-      this.knockOut(9 + Math.random() * 4);
+    // Already on the ground: stay down (extend), only a small flinch
+    if (this.state === 'down') {
+      this.downTimer = Math.max(this.downTimer, 4);
+      this.character.hit(region, 0.2, from);
       return 'downed';
     }
-    if (this.state !== 'cuffed' && this.state !== 'down') this.character.play(region === 'head' ? 'hitHead' : 'hitChest');
+    if (this.consciousness <= 0) { this.knockOut(9 + Math.random() * 4, from); return 'downed'; }
+    // Severe leg wound or heavy blood loss can drop someone (wounded, not dead)
+    const severity = Math.min(1, amount / 40);
+    if (kind === 'bullet' && this.hp < 25 && Math.random() < 0.35) { this.knockOut(14 + Math.random() * 8, from); return 'downed'; }
+    this.character.hit(region, kind === 'melee' ? Math.min(1, amount / 25) : severity, from);
+    // wounded leg: slower
+    if (region === 'leg' || region === 'limb') this.walkSpeed = Math.max(0.7, this.walkSpeed * 0.8);
     return 'hurt';
   }
 
-  knockOut(seconds: number) {
-    if (!this.alive) return;
+  knockOut(seconds: number, from: pc.Vec3 | null = null) {
+    if (!this.alive || this.state === 'down') return;
     this.setState('down');
     this.downTimer = seconds;
-    this.character.knockDown();
+    this.character.knockDown(from);
     if (this.armed && this.dropWeapon) { this.dropWeapon(); this.armed = null; }
   }
 
   update(dt: number, playerPos: pc.Vec3) {
     this.stateT += dt;
+    this.clock += dt;
     let mx = 0, mz = 0, speed = 0;
     const c = this.character;
 
@@ -158,15 +187,22 @@ export class Npc {
         if (this.state !== 'inCar') c.update(dt);
         return;
       case 'down':
+        // Stay down until the knock-out actually ends (and the fall has finished).
         c.speed = 0;
         this.downTimer -= dt;
-        if (this.downTimer <= 0) {
+        if (this.downTimer <= 0 && c.lyingStill) {
           this.consciousness = 60;
           c.getUp();
-          if (this.hostile) this.setState('combat');
-          else if (this.def.stationary) this.setState('idle');
-          else { this.fleeFrom = playerPos.clone(); this.setState('flee'); }
+          this.afterRecover = this.hostile ? 'combat' : this.def.stationary ? 'idle' : 'flee';
+          if (!this.hostile) this.fleeFrom = playerPos.clone();
+          this.setState('recover');
         }
+        c.update(dt);
+        return;
+      case 'recover':
+        // Getting up: don't move until the clip finishes
+        c.speed = 0;
+        if (!c.busy && this.stateT > 0.3) this.setState(this.afterRecover);
         c.update(dt);
         return;
       case 'surrender': {
@@ -174,10 +210,12 @@ export class Npc {
         c.pose = this.stateT > 2.5 ? 'kneel' : 'handsUp';
         break;
       }
-      case 'cower': {
+      case 'cower':
+      case 'hide': {
+        // Duck once and stay down while danger continues; stand up only after it's quiet.
         c.crouch = true;
-        if (this.fleeFrom) c.yaw = lerpAngle(c.yaw, yawTowards(this.x, this.z, this.fleeFrom.x, this.fleeFrom.z), Math.min(1, dt * 3));
-        if (this.stateT > 6) { c.crouch = false; this.setState(this.def.stationary ? 'idle' : 'wander'); }
+        if (this.fleeFrom) c.yaw = lerpAngle(c.yaw, yawTowards(this.x, this.z, this.fleeFrom.x, this.fleeFrom.z), Math.min(1, dt * 2));
+        if (!this.panicking && this.stateT > 2.5) { c.crouch = false; this.setState(this.def.stationary ? 'idle' : 'watch'); this.lookAt = this.threat; }
         break;
       }
       case 'combat': {
@@ -235,8 +273,15 @@ export class Npc {
         break;
       }
       case 'flee': {
-        if (this.fleeFrom) { mx = this.x - this.fleeFrom.x; mz = this.z - this.fleeFrom.z; speed = 4.4; }
-        if (this.stateT > 3.5) this.setState(this.def.stationary ? 'idle' : 'wander');
+        // Run until well clear, then take cover if danger continues
+        const from = this.fleeFrom;
+        const dist = from ? Math.hypot(this.x - from.x, this.z - from.z) : 99;
+        if (from) { mx = this.x - from.x; mz = this.z - from.z; speed = this.hp < 60 ? 3.2 : 4.6; }
+        const blocked = this.stateT > 1 && c.speed < 0.6;
+        if (dist > 28 || this.stateT > 8 || blocked) {
+          if (this.panicking) this.setState('hide');
+          else this.setState(this.def.stationary ? 'idle' : 'wander');
+        }
         break;
       }
       case 'cuffed': {
@@ -252,7 +297,7 @@ export class Npc {
       }
     }
 
-    if (this.state !== 'cower' && c.crouch && this.state !== 'combat') c.crouch = false;
+    if (this.state !== 'cower' && this.state !== 'hide' && c.crouch && this.state !== 'combat') c.crouch = false;
     if (this.state !== 'talking' && this.state !== 'cuffed' && c.pose === 'talk') c.pose = 'normal';
     if (this.state !== 'surrender' && this.state !== 'cuffed' && (c.pose === 'handsUp' || c.pose === 'kneel')) c.pose = 'normal';
 
@@ -263,6 +308,8 @@ export class Npc {
       if (this.faceYaw === null || this.state !== 'combat') c.yaw = lerpAngle(c.yaw, Math.atan2(vx, vz) * pc.math.RAD_TO_DEG, Math.min(1, dt * 8));
     }
     if (this.state === 'combat' && this.faceYaw !== null) c.yaw = lerpAngle(c.yaw, this.faceYaw, Math.min(1, dt * 10));
+    // stagger from hits pushes the body back a little
+    vx += c.stagger.x; vz += c.stagger.z;
     let nx = this.x + vx * dt, nz = this.z + vz * dt;
     const gy = this.world.groundHeight(nx, nz);
     this.world.resolveCircle(nx, nz, this.radius, gy + 0.2, gy + 1.7, res);

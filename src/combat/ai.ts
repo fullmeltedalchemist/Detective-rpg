@@ -112,7 +112,7 @@ export class CombatAI {
     this.t += dt;
     const p = this.cw.playerPos();
     for (const n of npcs) {
-      if (!n.hostile || !n.alive || n.state === 'down' || n.state === 'cuffed' || n.state === 'inCar' || n.state === 'jailed' || n.state === 'surrender') {
+      if (!n.hostile || !n.alive || n.state === 'down' || n.state === 'recover' || n.state === 'cuffed' || n.state === 'inCar' || n.state === 'jailed' || n.state === 'surrender') {
         const m = this.minds.get(n.id);
         if (m?.cover) { this.claimed.delete(m.cover); m.cover = null; }
         if (n.state !== 'combat') { n.character.aim = 'none'; }
@@ -176,7 +176,7 @@ export class CombatAI {
             n.moveSpeed = 4.6;
             n.character.crouch = false;
             n.character.aim = canSee && dist < 25 ? 'pistol' : 'none';
-            if (Math.hypot(m.cover.x - n.x, m.cover.z - n.z) < 0.4) this.setPhase(m, 'duck', 0.8 + Math.random());
+            if (Math.hypot(m.cover.x - n.x, m.cover.z - n.z) < 0.4) this.setPhase(m, 'duck', 1.6 + Math.random() * 1.2);
           } else {
             // no cover: strafe while shooting
             const side = Math.sin(this.t * 0.7 + n.x) > 0 ? 1 : -1;
@@ -189,7 +189,7 @@ export class CombatAI {
         }
         case 'duck':
           n.moveTarget = null; n.character.crouch = true; n.character.aim = 'none';
-          if (m.phaseT > m.phaseDur) this.setPhase(m, 'peek', 1.4 + Math.random() * 1.4);
+          if (m.phaseT > m.phaseDur) this.setPhase(m, 'peek', 2.4 + Math.random() * 1.8);
           break;
         case 'peek':
           n.moveTarget = null; n.character.crouch = false; n.character.aim = 'pistol';
@@ -197,7 +197,7 @@ export class CombatAI {
           if (m.phaseT > m.phaseDur) {
             // occasionally relocate/flank instead of ducking again
             if (Math.random() < 0.25 && allies.length > 0) { if (m.cover) this.claimed.delete(m.cover); m.cover = null; this.setPhase(m, 'move', 0); }
-            else this.setPhase(m, 'duck', 1.2 + Math.random() * 1.6);
+            else this.setPhase(m, 'duck', 1.8 + Math.random() * 1.6);
           }
           break;
         case 'retreat': {

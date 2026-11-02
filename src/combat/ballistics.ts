@@ -3,7 +3,7 @@ import type { CollisionWorld } from '../world/collision';
 import type { Humanoid } from '../entities/humanoid';
 
 /** Body regions for damage multipliers. */
-export type Region = 'head' | 'torso' | 'limb';
+export type Region = 'head' | 'torso' | 'arm' | 'leg';
 
 export interface Target {
   id: string;
@@ -29,14 +29,14 @@ const VOLUMES: Sphere[] = [
   { bone: 'spine_03', r: 0.21, region: 'torso' },
   { bone: 'spine_01', r: 0.19, region: 'torso' },
   { bone: 'pelvis', r: 0.18, region: 'torso' },
-  { bone: 'upperarm_l', mid: 'lowerarm_l', r: 0.08, region: 'limb' },
-  { bone: 'upperarm_r', mid: 'lowerarm_r', r: 0.08, region: 'limb' },
-  { bone: 'lowerarm_l', mid: 'hand_l', r: 0.07, region: 'limb' },
-  { bone: 'lowerarm_r', mid: 'hand_r', r: 0.07, region: 'limb' },
-  { bone: 'thigh_l', mid: 'calf_l', r: 0.11, region: 'limb' },
-  { bone: 'thigh_r', mid: 'calf_r', r: 0.11, region: 'limb' },
-  { bone: 'calf_l', mid: 'foot_l', r: 0.08, region: 'limb' },
-  { bone: 'calf_r', mid: 'foot_r', r: 0.08, region: 'limb' },
+  { bone: 'upperarm_l', mid: 'lowerarm_l', r: 0.08, region: 'arm' },
+  { bone: 'upperarm_r', mid: 'lowerarm_r', r: 0.08, region: 'arm' },
+  { bone: 'lowerarm_l', mid: 'hand_l', r: 0.07, region: 'arm' },
+  { bone: 'lowerarm_r', mid: 'hand_r', r: 0.07, region: 'arm' },
+  { bone: 'thigh_l', mid: 'calf_l', r: 0.11, region: 'leg' },
+  { bone: 'thigh_r', mid: 'calf_r', r: 0.11, region: 'leg' },
+  { bone: 'calf_l', mid: 'foot_l', r: 0.08, region: 'leg' },
+  { bone: 'calf_r', mid: 'foot_r', r: 0.08, region: 'leg' },
 ];
 
 const v1 = new pc.Vec3(), v2 = new pc.Vec3(), c = new pc.Vec3();
@@ -133,7 +133,7 @@ export class Ballistics {
 
   /** Damage after range falloff. */
   static damageFor(p: Projectile, hit: Hit) {
-    const mult = hit.region === 'head' ? p.headMult : hit.region === 'limb' ? p.limbMult : 1;
+    const mult = hit.region === 'head' ? p.headMult : hit.region === 'arm' || hit.region === 'leg' ? p.limbMult : 1;
     const falloff = hit.distance > p.range ? Math.max(0.4, 1 - (hit.distance - p.range) / (p.range * 2)) : 1;
     return p.damage * mult * falloff;
   }
