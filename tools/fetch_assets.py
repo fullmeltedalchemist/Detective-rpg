@@ -41,6 +41,8 @@ MODELS = [
     "clipboard", "SchoolChair_01", "Television_01", "office_notepads", "water_manhole_cover",
     "croissant", "Sofa_01", "exterior_aircon_unit", "wooden_crate_01", "standing_chalkboard_01",
     "hanging_picture_frame_01", "wall_clock", "plastic_monobloc_chair_01", "shrub_03",
+    # Phase A weapons
+    "service_pistol", "bolt_action_rifle_7_62", "wooden_military_crate", "concrete_road_barrier_02", "metal_jerrycan", "old_tyre", "plastic_crate_01",
 ]
 
 

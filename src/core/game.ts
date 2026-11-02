@@ -7,23 +7,29 @@ import { Hud } from '../ui/hud';
 import { CollisionWorld } from '../world/collision';
 import { Materials, queueSurfaceTextures } from '../world/materials';
 import { buildNeighborhood, type WorldRefs } from '../world/neighborhood';
-import { Character, yawTowards } from '../entities/character';
+import { Humanoid, AnimLibrary, yawTowards, type HumanLook } from '../entities/humanoid';
 import { Player } from '../entities/player';
 import { Car } from '../entities/car';
 import { Npc, type NpcDef } from '../entities/npc';
 import { GameState, EVIDENCE, type EvidenceId } from '../gameplay/state';
-import { currentObjective, dialogueFor, evaluateBooking, type CaseCtx } from '../gameplay/caseScript';
+import { currentObjective, dialogueFor, evaluateBooking, type CaseCtx, type BookingResult } from '../gameplay/caseScript';
+import { CombatDirector } from '../gameplay/combatDirector';
+import { ENCOUNTER_NPCS } from '../gameplay/encounter';
+import { WEAPONS } from '../combat/weapons';
 
 const MODELS = [
-  'male', 'survivor-male', 'survivor-female', 'skater-male', 'skater-female', 'police-car', 'sedan', 'taxi', 'suv', 'hatchback', 'van',
+  'police-car', 'sedan', 'taxi', 'suv', 'hatchback', 'van',
   'street_lamp_02', 'modular_street_seating', 'metal_trash_can', 'utility_box_01', 'planter_box_01', 'potted_plant_04',
   'round_wooden_table_02', 'bar_chair_round_01', 'CashRegister_01', 'metal_office_desk', 'steel_frame_shelves_01',
   'security_camera_01', 'cardboard_box_01', 'trashbag', 'WetFloorSign_01', 'cigarette_pack', 'vintage_lighter', 'clipboard',
   'SchoolChair_01', 'Television_01', 'office_notepads', 'water_manhole_cover', 'croissant', 'Sofa_01', 'exterior_aircon_unit',
   'wooden_crate_01', 'standing_chalkboard_01', 'hanging_picture_frame_01', 'wall_clock', 'plastic_monobloc_chair_01', 'shrub_03',
+  'service_pistol', 'bolt_action_rifle_7_62', 'wooden_military_crate', 'concrete_road_barrier_02', 'metal_jerrycan', 'old_tyre', 'plastic_crate_01',
 ];
+const HUMANS = ['hero_m', 'hero_f', 'hair_simpleparted', 'hair_buzzed', 'hair_beard', 'hair_long', 'hair_buns'];
+const OUTFITS = ['detective', 'okafor', 'rosa', 'nina', 'dale', 'victor', 'civ_m1', 'civ_f1', 'civ_f2', 'thug1', 'thug2', 'lookout', 'officer_m'];
 const HDRI = 'qwantani_late_afternoon_puresky';
-export const BUILD_ID = `v0.1.0 · ${import.meta.env.MODE}`;
+export const BUILD_ID = `v0.2.0-phaseA · ${import.meta.env.MODE}`;
 
 interface Interactable {
   id: string;
@@ -50,6 +56,8 @@ export class Game {
   parked: Car[] = [];
   npcs: Npc[] = [];
   state = new GameState();
+  combat!: CombatDirector;
+  anims!: AnimLibrary;
   interactables: Interactable[] = [];
   driving = false;
   prisoner: Npc | null = null;
@@ -99,6 +107,12 @@ export class Game {
     queueSurfaceTextures(this.assets, this.q);
     this.assets.hdr('sky', `assets/env/${HDRI}.hdr`);
     for (const m of MODELS) this.assets.model(m, `assets/models/${m}.glb`);
+    for (const h of HUMANS) this.assets.model(h, `assets/humans/${h}.glb`);
+    for (const a of ['ual1', 'ual2']) this.assets.model(a, `assets/anims/${a}.glb`);
+    for (const o of OUTFITS) {
+      this.assets.texture(`outfit:${o}_diff`, `assets/humans/outfits/${o}_diff.webp`, true);
+      this.assets.texture(`outfit:${o}_nor`, `assets/humans/outfits/${o}_nor.webp`, false);
+    }
     app.start();
     await this.assets.loadAll((p, label) => this.hud.setLoading(0.05 + p * 0.85, `Loading ${label}…`));
     if (this.assets.failedKeys.length) console.warn('Failed assets:', this.assets.failedKeys);
@@ -114,7 +128,7 @@ export class Game {
     this.hud.onSensitivity = (v) => { this.lookSens = v; try { localStorage.setItem('casefiles.sens', String(v)); } catch { /* */ } };
     const failed = this.assets.failedKeys;
     if (failed.length) this.hud.loadError(`Some assets failed to load: ${failed.join(', ')}`);
-    this.hud.ready(() => { this.started = true; app.resizeCanvas(); });
+    this.hud.ready(() => { this.started = true; this.input.gameStarted = true; this.combat.sfx.unlock(); app.resizeCanvas(); });
     (window as any).__game = this;
   }
 
@@ -185,13 +199,14 @@ export class Game {
     this.refs = buildNeighborhood(app, root, this.world, mats, this.assets, this.q);
     const A = this.refs.anchors;
 
+    this.anims = new AnimLibrary(this.assets);
+    const human = (look: HumanLook, name: string) => new Humanoid(this.assets, this.anims, look, name);
     // ---- Player ----
-    const pc0 = new Character(this.assets, 'male', 'detective');
+    const pc0 = human({ body: 'm', outfit: 'detective', hair: ['hair_simpleparted'], hairTint: [0.55, 0.42, 0.32] }, 'detective');
     root.addChild(pc0.entity);
     this.player = new Player(pc0, this.world);
     this.player.place(A.stationSpawn.x, A.stationSpawn.z, 180);
-    this.cam.yaw = 0; // camera south of player looking north... adjusted below
-    this.cam.yaw = 180 + 180; // look toward station (+Z)
+    this.cam.yaw = 360; // look toward the station (+Z)
     this.cam.snapTo(this.player.pos);
 
     // ---- Cars ----
@@ -207,27 +222,38 @@ export class Game {
       root.addChild(c.entity);
       c.place(x, z, h);
       this.parked.push(c);
+      // parked cars are solid (cover, bullets, pedestrians)
+      const along = Math.abs(Math.sin(h * pc.math.DEG_TO_RAD)) > 0.5;
+      this.world.addBox(x, 0.95, z, along ? 4.4 : 2.1, 1.9, along ? 2.1 : 4.4, 'car');
     }
 
     // ---- NPCs ----
     const defs: NpcDef[] = [
-      { id: 'okafor', name: 'Sgt. Dana Okafor', role: 'Desk sergeant', model: 'survivor-female', home: [A.sergeant.x, A.sergeant.z, 180], stationary: true },
-      { id: 'rosa', name: 'Rosa Alvarez', role: 'Café owner', model: 'skater-female', home: [A.rosa.x, A.rosa.z, 0], stationary: true },
-      { id: 'nina', name: 'Nina Park', role: 'Bank teller', model: 'survivor-female', home: [A.nina.x, A.nina.z, 0], stationary: true },
-      { id: 'dale', name: 'Dale Mercer', role: 'Bus stop regular', model: 'skater-male', home: [A.busStop.x + 0.8, A.busStop.z + 0.6, 0], route: [[-22, -7.3], [-17, -7.4], [-19.5, -6.6]] },
-      { id: 'victor', name: 'Victor Lane', role: 'Can collector', model: 'survivor-male', home: [A.parkBench.x, A.parkBench.z + 0.9, 180], route: [[-26, -23], [-26, -16], [-30, -14], [-22, -14], [-26, -20]] },
-      { id: 'civ1', name: 'Marisol Reyes', role: 'Resident', model: 'skater-female', home: [-40, -7, 90], route: [[-40, -7], [-12, -7], [-7, -20], [-7, -7], [-40, -7.2]] },
-      { id: 'civ2', name: 'June Hollis', role: 'Resident', model: 'survivor-female', home: [40, 7, -90], route: [[58, 7.2], [12, 7.2], [7, 20], [7, 7], [58, 7]] },
-      { id: 'civ3', name: 'Priya Shah', role: 'Resident', model: 'skater-female', home: [60, -7, -90], route: [[64, -7.1], [31, -7.1], [10, -7.1], [31, -7]] },
+      { id: 'okafor', name: 'Sgt. Dana Okafor', role: 'Desk sergeant', look: { body: 'f', outfit: 'okafor', hair: ['hair_buns'], hairTint: [0.25, 0.2, 0.18] }, home: [A.sergeant.x, A.sergeant.z, 180], stationary: true, kind: 'staff' },
+      { id: 'rosa', name: 'Rosa Alvarez', role: 'Café owner', look: { body: 'f', outfit: 'rosa', hair: ['hair_long'], hairTint: [0.5, 0.32, 0.22] }, home: [A.rosa.x, A.rosa.z, 0], stationary: true, kind: 'staff' },
+      { id: 'nina', name: 'Nina Park', role: 'Bank teller', look: { body: 'f', outfit: 'nina', hair: ['hair_long'], hairTint: [0.16, 0.13, 0.12] }, home: [A.nina.x, A.nina.z, 0], stationary: true, kind: 'staff' },
+      { id: 'dale', name: 'Dale Mercer', role: 'Bus stop regular', look: { body: 'm', outfit: 'dale', hair: ['hair_buzzed'], hairTint: [0.75, 0.55, 0.38] }, home: [A.busStop.x + 0.8, A.busStop.z + 0.6, 0], route: [[-22, -7.3], [-17, -7.4], [-19.5, -6.6]], kind: 'civilian' },
+      { id: 'victor', name: 'Victor Lane', role: 'Can collector', look: { body: 'm', outfit: 'victor', hair: ['hair_buzzed', 'hair_beard'], hairTint: [0.3, 0.26, 0.24] }, home: [A.parkBench.x, A.parkBench.z + 0.9, 180], route: [[-26, -23], [-26, -16], [-30, -14], [-22, -14], [-26, -20]], kind: 'civilian' },
+      { id: 'civ1', name: 'Marisol Reyes', role: 'Resident', look: { body: 'f', outfit: 'civ_f1', hair: ['hair_buns'], hairTint: [0.2, 0.15, 0.12] }, home: [-40, -7, 90], route: [[-40, -7], [-12, -7], [-7, -20], [-7, -7], [-40, -7.2]], kind: 'civilian' },
+      { id: 'civ2', name: 'June Hollis', role: 'Resident', look: { body: 'f', outfit: 'civ_f2', hair: ['hair_long'], hairTint: [1.0, 0.85, 0.6] }, home: [40, 7, -90], route: [[58, 7.2], [12, 7.2], [7, 20], [7, 7], [58, 7]], kind: 'civilian' },
+      { id: 'civ3', name: 'Marcus Hale', role: 'Resident', look: { body: 'm', outfit: 'civ_m1', hair: ['hair_simpleparted'], hairTint: [0.22, 0.18, 0.16] }, home: [60, -7, -90], route: [[64, -7.1], [31, -7.1], [10, -7.1], [31, -7]], kind: 'civilian' },
+      ...ENCOUNTER_NPCS,
     ];
     for (const d of defs) {
-      const ch = new Character(this.assets, d.model, d.id);
+      const ch = human(d.look, d.id);
       root.addChild(ch.entity);
       const n = new Npc(d, ch, this.world);
       n.teleport(d.home[0], d.home[1], d.home[2]);
       this.npcs.push(n);
     }
 
+    this.combat = new CombatDirector(this);
+    this.combat.init(root);
+    this.hud.standingHtml = () => {
+      const st = this.combat.standing.summary();
+      const inc = this.combat.standing.incidents.slice(-6).reverse().map((i) => `<div class="task">${i.label}${i.witnessed ? ' · witnessed' : ''}${i.subject ? ` — ${i.subject}` : ''}</div>`).join('');
+      return `<div class="stand"><div><b>${st.trust}</b>Public trust</div><div><b>${st.prof}</b>Professional</div><div><b>${st.ia}</b>IA attention</div><div><b>${st.morality}</b>Morality</div><div><b>${st.influence}</b>Criminal ties</div></div>${inc}${this.combat.standing.suspended ? '<div class="task" style="color:var(--red)">SUSPENDED — firearm confiscated</div>' : ''}`;
+    };
     this.registerInteractions();
     this.debug = { anchors: A };
   }
@@ -261,8 +287,9 @@ export class Game {
       I.push({
         id: `talk:${n.id}`, pos: n.pos, radius: 2.4, priority: 2,
         label: () => {
-          if (n.state === 'jailed' || n.state === 'inCar') return null;
+          if (n.state === 'jailed' || n.state === 'inCar' || !n.alive || n.state === 'down' || n.state === 'combat' || n.state === 'surrender') return null;
           if (this.prisoner === n) return null;
+          if (n.hostile) return null;
           return `Talk to ${n.name.split(' ')[0] === 'Sgt.' ? 'Okafor' : n.name.split(' ')[0]}`;
         },
         act: () => this.talk(n),
@@ -317,6 +344,39 @@ export class Game {
     // Case board / desk
     I.push({ id: 'board', pos: A.caseBoard, radius: 1.8, priority: 1, label: () => 'Case board', act: () => this.hud.openNotebook(s, this.objective()) });
 
+    // Combat interactions on suspects: takedown, cuff the surrendered/downed, check the dead
+    for (const n of this.npcs) {
+      I.push({
+        id: `restrain:${n.id}`, pos: n.pos, radius: 1.9, priority: 6,
+        label: () => {
+          if (this.prisoner || n.state === 'cuffed' || n.state === 'jailed' || n.state === 'inCar') return null;
+          if (!n.alive) return null;
+          if ((n.state === 'surrender' || n.state === 'down') && (n.hostile || n.state === 'down')) return 'Handcuff';
+          if (this.combat.canTakedown(n)) return 'Takedown';
+          return null;
+        },
+        act: () => {
+          if (n.state === 'surrender' || n.state === 'down') this.cuff(n);
+          else this.combat.takedown(n);
+        },
+      });
+    }
+    I.push({
+      id: 'order', pos: new pc.Vec3(), radius: 99, priority: 3,
+      label: () => (this.combat.canOrder() ? 'Order surrender' : null),
+      act: () => this.combat.orderSurrender(),
+    });
+    I.push({
+      id: 'seize', pos: new pc.Vec3(), radius: 99, priority: 4,
+      label: () => this.combat.pickupNear(this.player.x, this.player.z)?.label ?? null,
+      act: () => this.combat.pickupNear(this.player.x, this.player.z)?.act(),
+    });
+    I.push({
+      id: 'trunk', pos: new pc.Vec3(), radius: 1.6, priority: 1,
+      label: () => (this.combat.player.owned.includes('rifle') || this.combat.player.disabledFirearms ? null : 'Take rifle from trunk'),
+      act: () => { this.combat.player.giveWeapon('rifle'); this.combat.player.equip('rifle'); this.hud.toast('Took the bolt-action rifle from the cruiser trunk'); },
+    });
+
     // Closed businesses — honest feedback
     for (const [k, name] of [['hardwareDoor', 'Marlowe Hardware'], ['laundryDoor', 'Suds Laundromat'], ['flatsDoor', 'Harbor Flats'], ['pearlDoor', 'Pearl Apartments']] as const) {
       I.push({ id: k, pos: A[k], radius: 1.6, priority: 0, label: () => 'Door', act: () => this.hud.toast(`${name} — closed in this build`) });
@@ -343,6 +403,8 @@ export class Game {
   }
 
   private cuff(n: Npc) {
+    if (n.state === 'down') n.character.getUp();
+    n.character.pose = 'normal';
     this.prisoner = n;
     n.setState('cuffed');
     n.character.pose = 'cuffed';
@@ -359,7 +421,13 @@ export class Game {
     const n = this.prisoner;
     if (!n) return;
     const s = this.state;
-    const r = evaluateBooking(n.id, n.name, s);
+    const r: BookingResult = n.hostile
+      ? { outcome: 'charged', title: 'Charged: Armed robbery & weapons offences', rep: 2, jail: true,
+          text: `${n.name} is booked. ${n.def.armed ? 'Possession of a firearm and the dealer\'s stolen goods make this an easy charge.' : 'Charged as an accessory — he was the lookout.'}` }
+      : evaluateBooking(n.id, n.name, s);
+    if (n.hostile) this.combat.incident('nonlethal_arrest', n.pos, n);
+    else if (r.outcome === 'charged') this.combat.incident('good_arrest', n.pos, n);
+    else if (r.outcome === 'wrongful' || r.outcome === 'noGrounds') this.combat.incident('wrongful_arrest', n.pos, n);
     s.reputation = Math.max(-10, Math.min(10, s.reputation + r.rep));
     s.arrests.push({ npcId: n.name, outcome: r.outcome, at: Date.now() });
     this.prisoner = null;
@@ -386,8 +454,8 @@ export class Game {
   private enterCar() {
     this.driving = true;
     this.player.character.visible = false;
-    this.cam.targetDistance = 7.5;
-    this.cam.height = 1.9;
+    this.combat.player.aiming = false;
+    this.cam.setFraming(7.5, 1.9);
     if (this.prisoner && this.prisoner.pos.distance(this.car.entity.getPosition()) < 8) {
       this.prisoner.setState('inCar');
       this.prisoner.character.visible = false;
@@ -402,8 +470,7 @@ export class Game {
     const [ex, ez] = this.car.exitPoint();
     this.player.place(ex, ez, this.car.heading);
     this.player.character.visible = true;
-    this.cam.targetDistance = 4.2;
-    this.cam.height = 1.55;
+    this.cam.setFraming(4.2, 1.55);
     this.cam.autoYaw = null;
     if (this.prisoner && this.prisoner.state === 'inCar') {
       const r = this.car.heading * pc.math.DEG_TO_RAD;
@@ -435,8 +502,15 @@ export class Game {
     }
     if (inp.pressed('diag')) { this.hud.diagOn = !this.hud.diagOn; }
 
-    if (!modal) this.cam.applyLook(look.x * this.lookSens, look.y * this.lookSens);
+    const assist = this.combat.player.assistFactor(inp.touchMode);
+    if (!modal) this.cam.applyLook(look.x * this.lookSens * assist, look.y * this.lookSens * assist);
     const mx = modal ? 0 : inp.move.x, my = modal ? 0 : inp.move.y;
+    const pcmb = this.combat.player;
+    pcmb.update(dt, { modal, driving: this.driving, moveSpeed: Math.hypot(this.player.vx, this.player.vz) });
+    pcmb.applyAimPull(dt, inp.touchMode, this.npcs.filter((n) => n.hostile));
+    this.player.lockYaw = !this.driving && (pcmb.aiming || pcmb.blocking) ? this.cam.yaw + 180 : null;
+    this.player.speedScale = pcmb.aiming ? 0.55 : pcmb.blocking ? 0.5 : 1;
+    this.player.canSprint = !pcmb.aiming && !pcmb.blocking;
 
     // ---- Driving / walking ----
     if (this.driving) {
@@ -464,12 +538,11 @@ export class Game {
         const d = this.car.distanceTo(n.x, n.z);
         if (d < 4.5) n.flee(this.car.entity.getPosition());
         if (d < 0.35 && Math.abs(this.car.speed) > 6 && this.recklessCooldown <= 0 && n !== this.prisoner) {
-          this.state.reputation = Math.max(-10, this.state.reputation - 1);
           this.recklessCooldown = 4;
-          this.hud.toast('Reckless driving — a pedestrian was nearly hit  ·  Reputation −1');
+          this.combat.incident('reckless_driving', n.pos, n);
         }
       }
-      if (!this.driving && Math.hypot(n.x - this.player.x, n.z - this.player.z) < 0.6 && n !== this.prisoner) {
+      if (!this.driving && n.alive && n.state !== 'down' && Math.hypot(n.x - this.player.x, n.z - this.player.z) < 0.6 && n !== this.prisoner) {
         // simple separation from the player
         const dx = n.x - this.player.x, dz = n.z - this.player.z, d = Math.max(0.01, Math.hypot(dx, dz));
         n.teleport(this.player.x + (dx / d) * 0.6, this.player.z + (dz / d) * 0.6);
@@ -478,6 +551,9 @@ export class Game {
     // keep the talk interactables tracking NPC positions
     for (const it of this.interactables) {
       if (it.id.startsWith('talk:')) { const n = this.npc(it.id.slice(5)); it.pos.set(n.x, n.y, n.z); }
+      else if (it.id.startsWith('restrain:')) { const n = this.npc(it.id.slice(9)); it.pos.set(n.x, n.y, n.z); }
+      else if (it.id === 'seize' || it.id === 'order') it.pos.set(this.player.x, this.player.y, this.player.z);
+      else if (it.id === 'trunk') { const r = this.car.heading * pc.math.DEG_TO_RAD; it.pos.set(this.car.x - Math.sin(r) * 2.6, this.player.y, this.car.z - Math.cos(r) * 2.6); }
     }
 
     // ---- Doors ----
@@ -512,6 +588,22 @@ export class Game {
     this.hud.setVehicleButton(this.driving ? 'exit' : nearCar ? 'enter' : null);
     if (nearCar && !best && !this.input.touchMode) this.hud.setPrompt('Drive cruiser', 'F');
     this.hud.setObjective(this.objective());
+
+    // ---- Combat systems + post-animation overrides ----
+    this.combat.update(dt);
+    this.player.character.postAnimate();
+    for (const n of this.npcs) if (n.state !== 'inCar') n.character.postAnimate();
+    this.combat.postAnimate();
+    const w = WEAPONS[pcmb.equipped];
+    const ws = (pcmb as any).ws;
+    const spreadPx = pcmb.armed ? Math.tan(pcmb.currentSpread(Math.hypot(this.player.vx, this.player.vz)) * pc.math.DEG_TO_RAD) / Math.tan((this.cameraEntity.camera!.fov / 2) * pc.math.DEG_TO_RAD) * (this.app.graphicsDevice.height / this.dynRatio) * 0.5 : 0;
+    this.hud.setCombat({
+      show: !this.driving && this.started, armed: pcmb.armed, aiming: pcmb.aiming, blocking: pcmb.blocking,
+      weaponName: pcmb.disabledFirearms ? 'Fists (firearm confiscated)' : w.name, mag: ws.mag, reserve: ws.reserve, magSize: w.magSize,
+      reloading: pcmb.reloading, spreadPx: Math.min(60, spreadPx), hp: (pcmb.hp / pcmb.maxHp) * 100, stamina: pcmb.stamina,
+      hit: pcmb.hitMarker > 0, onTarget: !!pcmb.aimTarget && pcmb.aimTarget.id !== 'player', hurt: this.combat.hurtAmount,
+      crosshair: !this.driving && this.started && !modal && (pcmb.armed || pcmb.blocking),
+    });
 
     // ---- Camera ----
     const target = this.driving ? this.car.entity.getPosition() : this.player.pos;

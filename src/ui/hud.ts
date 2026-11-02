@@ -8,6 +8,12 @@ const icons = {
   hand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11.5V4a1.5 1.5 0 0 1 3 0v8M14 11.5V6a1.5 1.5 0 0 1 3 0v7.5c0 4-2.5 7-6.5 7S5 18 4 15l-1-3a1.5 1.5 0 0 1 2.7-1.2L8 14"/></svg>',
   car: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 16h14M6 16l1.5-5.5A2 2 0 0 1 9.4 9h5.2a2 2 0 0 1 1.9 1.5L18 16M4 16v3M20 16v3"/><circle cx="7.5" cy="16.5" r="1.2"/><circle cx="16.5" cy="16.5" r="1.2"/></svg>',
   siren: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 18v-5a5 5 0 0 1 10 0v5M5 18h14M12 3v2M4.5 6.5l1.4 1.4M19.5 6.5l-1.4 1.4"/></svg>',
+  aim: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg>',
+  fire: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9h13l2-2h3v5h-5l-1 2h-3l-1 5H7l1-5H3z"/></svg>',
+  fist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 10V7a2 2 0 0 1 4 0v3M10 9V6a2 2 0 0 1 4 0v4M14 9V7a2 2 0 0 1 4 0v6c0 4-3 7-7 7H9c-2 0-3-1-4-3l-1-3c-.4-1.3 1-2.2 2-1.4L8 14"/></svg>',
+  reload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg>',
+  swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h14l-3-3M20 16H6l3 3"/></svg>',
+  block: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>',
   brake: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M9 9h6v6H9z"/></svg>',
 };
 
@@ -27,6 +33,17 @@ export class Hud {
   private notebook!: HTMLDivElement;
   private menu!: HTMLDivElement;
   private report!: HTMLDivElement;
+  private crosshair!: HTMLDivElement;
+  private hitmark!: HTMLDivElement;
+  private combatInfo!: HTMLDivElement;
+  private health!: HTMLDivElement;
+  private vignette!: HTMLDivElement;
+  private combatR!: HTMLDivElement;
+  private fireL!: HTMLDivElement;
+  private btnFire!: HTMLButtonElement;
+  private btnAim!: HTMLButtonElement;
+  private btnReload!: HTMLButtonElement;
+  private btnWeapon!: HTMLButtonElement;
   private toastTimer = 0;
   private lastObjective = '';
   /** True while any modal is open (gameplay input is suspended). */
@@ -35,6 +52,7 @@ export class Hud {
   onDiag: (on: boolean) => void = () => {};
   onSensitivity: (v: number) => void = () => {};
   diagOn = false;
+  standingHtml: (() => string) | null = null;
 
   constructor(private input: Input) {
     this.root = document.getElementById('ui')!;
@@ -88,6 +106,31 @@ export class Hud {
     const relBrake = () => { this.input.brakeHeld = false; this.btnBrake.classList.remove('pressed'); };
     this.btnBrake.addEventListener('pointerup', relBrake); this.btnBrake.addEventListener('pointercancel', relBrake); this.btnBrake.addEventListener('pointerleave', relBrake);
 
+    // ---- combat controls ----
+    this.crosshair = this.el('div', 'crosshair', '<i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i>');
+    this.hitmark = this.el('div', 'hitmark');
+    this.vignette = this.el('div', 'vignette');
+    this.combatInfo = this.el('div', 'combat-info', '<div class="wname"></div><div class="ammo"></div>');
+    this.health = this.el('div', 'health', '<div class="bar"><i></i></div><div class="bar st"><i></i></div>');
+    this.combatR = this.el('div', 'combat-r interactive');
+    this.btnWeapon = this.el('button', 'btn small', `${icons.swap}<span>Weapon</span>`, this.combatR) as HTMLButtonElement;
+    this.btnReload = this.el('button', 'btn small', `${icons.reload}Reload`, this.combatR) as HTMLButtonElement;
+    this.btnAim = this.el('button', 'btn', `${icons.aim}<span>Aim</span>`, this.combatR) as HTMLButtonElement;
+    this.btnFire = this.el('button', 'btn fire', `${icons.fire}<span>Fire</span>`, this.combatR) as HTMLButtonElement;
+    this.fireL = this.el('div', 'fire-l interactive');
+    const fireL = this.el('button', 'btn fire small', `${icons.fire}`, this.fireL) as HTMLButtonElement;
+    bindTap(this.btnWeapon, () => this.input.press('weapon'));
+    bindTap(this.btnReload, () => this.input.press('reload'));
+    bindTap(this.btnAim, () => this.input.press('aimToggle'));
+    // Fire buttons: hold to fire, drag to keep aiming (look)
+    for (const fb of [this.btnFire, fireL]) {
+      let id: number | null = null, lx = 0, ly = 0;
+      fb.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); id = e.pointerId; lx = e.clientX; ly = e.clientY; fb.setPointerCapture(e.pointerId); fb.classList.add('pressed'); this.input.touchFireHeld = true; });
+      fb.addEventListener('pointermove', (e) => { if (e.pointerId !== id) return; this.input.look.x += (e.clientX - lx) * this.input.lookSensitivity.touch; this.input.look.y += (e.clientY - ly) * this.input.lookSensitivity.touch; lx = e.clientX; ly = e.clientY; });
+      const up = (e: PointerEvent) => { if (e.pointerId !== id) return; id = null; fb.classList.remove('pressed'); this.input.touchFireHeld = false; };
+      fb.addEventListener('pointerup', up); fb.addEventListener('pointercancel', up);
+    }
+
     this.dialogue = this.el('div', 'modal dialogue interactive', '<div class="sheet"><div class="who"></div><div class="line"></div><div class="choices"></div></div>');
     this.examine = this.el('div', 'modal examine interactive', '<div class="sheet"></div>');
     this.notebook = this.el('div', 'modal notebook interactive', '<div class="sheet"><header><h2>Notebook</h2><button>Close</button></header><div class="body"></div></div>');
@@ -136,6 +179,34 @@ export class Hud {
     if (mode) this.btnVehicle.innerHTML = `${icons.car}${mode === 'enter' ? 'Drive' : 'Exit'}`;
     this.btnSiren.classList.toggle('hidden', mode !== 'exit');
     this.btnBrake.classList.toggle('hidden', mode !== 'exit');
+  }
+
+  /** Update combat HUD each frame. */
+  setCombat(s: {
+    show: boolean; armed: boolean; aiming: boolean; blocking: boolean; weaponName: string; mag: number; reserve: number; magSize: number;
+    reloading: boolean; spreadPx: number; hp: number; stamina: number; hit: boolean; onTarget: boolean; hurt: number; crosshair: boolean;
+  }) {
+    this.combatR.classList.toggle('show', s.show);
+    this.fireL.classList.toggle('show', s.show && s.armed);
+    this.crosshair.classList.toggle('show', s.crosshair);
+    this.crosshair.classList.toggle('target', s.onTarget);
+    const g = Math.round(4 + s.spreadPx);
+    const ch = this.crosshair.children as HTMLCollectionOf<HTMLElement>;
+    ch[0].style.top = `${-g - 9}px`; ch[1].style.top = `${g}px`; ch[2].style.left = `${-g - 9}px`; ch[3].style.left = `${g}px`;
+    this.hitmark.classList.toggle('show', s.hit);
+    this.combatInfo.style.display = s.show ? 'block' : 'none';
+    (this.combatInfo.querySelector('.wname') as HTMLElement).textContent = s.weaponName;
+    const ammo = this.combatInfo.querySelector('.ammo') as HTMLElement;
+    ammo.innerHTML = s.armed ? (s.reloading ? 'RELOADING' : `${s.mag}<small> / ${s.reserve}</small>`) : '';
+    ammo.classList.toggle('low', s.armed && s.mag <= Math.ceil(s.magSize * 0.2));
+    (this.health.querySelector('.bar i') as HTMLElement).style.width = `${s.hp}%`;
+    (this.health.querySelector('.bar.st i') as HTMLElement).style.width = `${s.stamina}%`;
+    this.health.style.display = s.show ? 'block' : 'none';
+    this.vignette.style.opacity = String(Math.min(0.85, s.hurt));
+    this.btnFire.querySelector('span')!.textContent = s.armed ? 'Fire' : 'Punch';
+    this.btnAim.querySelector('span')!.textContent = s.armed ? 'Aim' : 'Block';
+    this.btnAim.classList.toggle('on', s.aiming || s.blocking);
+    this.btnReload.style.visibility = s.armed ? 'visible' : 'hidden';
   }
 
   toast(msg: string, ms = 2800) {
@@ -209,7 +280,7 @@ export class Hud {
       <div class="task">Victim: Rosa Alvarez, owner of Café Luna. $3,200 deposit bag taken ~5:40 PM in the alley by the bank.</div>
       <h3>Evidence & statements (${s.evidence.size})</h3>${ev}
       <h3>Arrests</h3>${arrests}
-      <h3>Standing</h3><div class="task">Reputation: ${s.reputation >= 0 ? '+' : ''}${s.reputation}</div>`;
+      <h3>Standing</h3>${this.standingHtml ? this.standingHtml() : `<div class="task">Reputation: ${s.reputation}</div>`}`;
     this.notebook.classList.add('show');
   }
   closeNotebook() { this.notebook.classList.remove('show'); this.modalOpen = false; }
@@ -232,7 +303,8 @@ export class Hud {
       <p>Changing quality reloads the page (your case progress in this build is not saved yet).</p>
       <h3>Controls</h3>
       <p><b>Touch:</b> left side = move (push to the edge to run) · drag right side = look · big button = interact · Drive/Exit near the cruiser.<br>
-      <b>Keyboard:</b> WASD move · Shift run · mouse drag or double-click to lock the mouse · E interact · F enter/exit car · Space brake · H siren · Tab notebook · \` overlay.</p>
+      Combat: Weapon cycles fists/pistol/rifle · Aim toggles aim-down-sights (Block when unarmed) · hold Fire (drag on it to keep aiming) · Reload.<br>
+      <b>Keyboard:</b> WASD move · Shift run · click to lock the mouse · LMB fire/punch · RMB aim/block · R reload · Q or 1/2/3 weapons · C swap shoulder · E interact · F car · Space brake · H siren · Tab notebook · \` overlay.</p>
       <h3>Build</h3><p>${info}</p>
       <h3>Credits</h3><p>Engine: PlayCanvas (MIT). Textures, HDRI and props: Poly Haven (CC0). Characters and vehicles: Kenney (CC0), placeholder art.</p>`;
     body.querySelectorAll('.seg').forEach((seg) => {
