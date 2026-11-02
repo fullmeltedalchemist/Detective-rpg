@@ -2,14 +2,19 @@ import { defineConfig, type Plugin } from 'vite';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 
-/** Resolve the commit being built: git, then Netlify's env, then a file written by the deploy script. */
+/**
+ * Resolve the commit being built. A `.build-commit` file (written just before a CLI/MCP deploy,
+ * never committed) wins: Netlify's build of an uploaded folder creates its own throw-away git
+ * repo, so `git rev-parse` there returns a meaningless commit. Otherwise git, then Netlify's env.
+ */
 function buildInfo() {
   const sh = (c: string) => { try { return execSync(c, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { return ''; } };
-  let commit = sh('git rev-parse HEAD') || process.env.COMMIT_REF || '';
-  let branch = sh('git rev-parse --abbrev-ref HEAD') || process.env.BRANCH || process.env.HEAD || '';
-  if (!commit && fs.existsSync('.build-commit')) {
-    const [c, b] = fs.readFileSync('.build-commit', 'utf8').trim().split(/\s+/);
-    commit = c; branch = branch || b || '';
+  let commit = '', branch = '';
+  if (fs.existsSync('.build-commit')) {
+    [commit = '', branch = ''] = fs.readFileSync('.build-commit', 'utf8').trim().split(/\s+/);
+  } else {
+    commit = sh('git rev-parse HEAD') || process.env.COMMIT_REF || '';
+    branch = sh('git rev-parse --abbrev-ref HEAD') || process.env.BRANCH || process.env.HEAD || '';
   }
   const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   return { version: pkg.version as string, commit: commit || 'unknown', branch: branch || 'unknown', builtAt: new Date().toISOString() };
