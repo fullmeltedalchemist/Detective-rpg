@@ -76,15 +76,22 @@ export class Car {
     for (const n of ['wheel_frontLeft', 'wheel_frontRight', 'wheel_backLeft', 'wheel_backRight']) {
       const w = model.findByName(n) as pc.Entity | null;
       if (!w?.render) continue;
-      const aabb = w.render.meshInstances[0].aabb; // in model space at identity transform
-      const c = aabb.center.clone();
+      // Put a pivot at the wheel's centre (world space) and move the wheel under it without
+      // changing where it is drawn — parents in these models carry their own transforms.
+      const aabb = w.render.meshInstances[0].aabb;
+      const centre = aabb.center.clone();
+      const wPos = w.getPosition().clone(), wRot = w.getRotation().clone(), wScale = w.getScale().clone();
       const pivot = new pc.Entity(`${n}_pivot`);
       const parent = w.parent as pc.Entity;
       parent.addChild(pivot);
-      pivot.setLocalPosition(c.x, c.y, c.z);
+      pivot.setPosition(centre);
+      pivot.setRotation(parent.getRotation());
       parent.removeChild(w);
       pivot.addChild(w);
-      w.setLocalPosition(-c.x, -c.y, -c.z);
+      w.setPosition(wPos);
+      w.setRotation(wRot);
+      const ps = pivot.getScale();
+      w.setLocalScale(wScale.x / ps.x, wScale.y / ps.y, wScale.z / ps.z);
       this.wheels.push({ pivot, front: n.includes('front'), radius: aabb.halfExtents.y * this.scale });
     }
   }

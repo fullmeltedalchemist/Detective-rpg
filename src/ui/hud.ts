@@ -15,6 +15,8 @@ const icons = {
   swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h14l-3-3M20 16H6l3 3"/></svg>',
   block: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>',
   brake: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M9 9h6v6H9z"/></svg>',
+  cuffs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="7" cy="15" r="4.2"/><circle cx="17" cy="15" r="4.2"/><path d="M7 10.8V7.5M17 10.8V7.5M7 7.5c0-2 1.5-3 5-3s5 1 5 3"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/></svg>',
 };
 
 export class Hud {
@@ -44,6 +46,13 @@ export class Hud {
   private btnAim!: HTMLButtonElement;
   private btnReload!: HTMLButtonElement;
   private btnWeapon!: HTMLButtonElement;
+  private arrest!: HTMLDivElement;
+  private btnCuff!: HTMLButtonElement;
+  private btnSearch!: HTMLButtonElement;
+  private ctxKeys!: HTMLDivElement;
+  private progress!: HTMLDivElement;
+  private found!: HTMLDivElement;
+  private foundTimer = 0;
   private toastTimer = 0;
   private lastObjective = '';
   /** True while any modal is open (gameplay input is suspended). */
@@ -105,6 +114,16 @@ export class Hud {
     this.btnBrake.addEventListener('pointerdown', (e) => { e.preventDefault(); this.input.brakeHeld = true; this.btnBrake.classList.add('pressed'); });
     const relBrake = () => { this.input.brakeHeld = false; this.btnBrake.classList.remove('pressed'); };
     this.btnBrake.addEventListener('pointerup', relBrake); this.btnBrake.addEventListener('pointercancel', relBrake); this.btnBrake.addEventListener('pointerleave', relBrake);
+
+    // ---- arrest controls (contextual, like the weapon buttons) ----
+    this.arrest = this.el('div', 'arrest interactive');
+    this.btnSearch = this.el('button', 'btn search hidden', `${icons.search}<span>Search</span>`, this.arrest) as HTMLButtonElement;
+    this.btnCuff = this.el('button', 'btn cuff hidden', `${icons.cuffs}<span>Cuff</span>`, this.arrest) as HTMLButtonElement;
+    bindTap(this.btnCuff, () => this.input.press('cuff'));
+    bindTap(this.btnSearch, () => this.input.press('search'));
+    this.ctxKeys = this.el('div', 'ctx-keys');
+    this.progress = this.el('div', 'progress', '<span></span><div class="bar"><i></i></div>');
+    this.found = this.el('div', 'found');
 
     // ---- combat controls ----
     this.crosshair = this.el('div', 'crosshair', '<i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i>');
@@ -172,6 +191,37 @@ export class Hud {
     this.prompt.classList.toggle('show', !this.input.touchMode);
     this.btnInteract.classList.remove('disabled');
     this.btnInteract.querySelector('span')!.textContent = label.length > 14 ? label.split(' ')[0] : label;
+  }
+
+  /** Contextual arrest buttons (touch) and key hints (desktop). Labels or null to hide. */
+  setArrestActions(cuff: string | null, search: string | null) {
+    const set = (b: HTMLButtonElement, label: string | null, def: string) => {
+      b.classList.toggle('hidden', !label);
+      if (label) b.querySelector('span')!.textContent = label.length > 10 ? def : label;
+    };
+    set(this.btnCuff, cuff, 'Cuff');
+    set(this.btnSearch, search, 'Search');
+    const parts: string[] = [];
+    if (cuff) parts.push(`<span><kbd>G</kbd>${cuff}</span>`);
+    if (search) parts.push(`<span><kbd>V</kbd>${search}</span>`);
+    this.ctxKeys.innerHTML = parts.join('');
+    this.ctxKeys.classList.toggle('show', parts.length > 0 && !this.input.touchMode);
+  }
+
+  /** A timed action in progress (cuffing, pat-down). t = 0..1, or label null to hide. */
+  setProgress(label: string | null, t = 0) {
+    this.progress.classList.toggle('show', !!label);
+    if (!label) return;
+    this.progress.querySelector('span')!.textContent = label;
+    (this.progress.querySelector('.bar i') as HTMLElement).style.width = `${Math.round(Math.min(1, t) * 100)}%`;
+  }
+
+  /** Non-blocking card listing what a search turned up. */
+  showFound(title: string, items: { icon: string; name: string }[], warn?: string) {
+    this.found.innerHTML = `<b>${title}</b>${items.map((i) => `<div><span>${i.icon}</span>${i.name}</div>`).join('') || '<div><span>·</span>Nothing of interest</div>'}${warn ? `<p>${warn}</p>` : ''}`;
+    this.found.classList.add('show');
+    clearTimeout(this.foundTimer);
+    this.foundTimer = window.setTimeout(() => this.found.classList.remove('show'), warn ? 7000 : 5500);
   }
 
   setVehicleButton(mode: 'enter' | 'exit' | null) {
@@ -313,8 +363,8 @@ export class Hud {
       <p>Changing quality reloads the page (your case progress in this build is not saved yet).</p>
       <h3>Controls</h3>
       <p><b>Touch:</b> left side = move (push to the edge to run) · drag right side = look · big button = interact · Drive/Exit near the cruiser.<br>
-      Combat: Weapon cycles fists/pistol/rifle · Aim toggles aim-down-sights (Block when unarmed) · hold Fire (drag on it to keep aiming) · Reload.<br>
-      <b>Keyboard:</b> WASD move · Shift run · click to lock the mouse · LMB fire/punch · RMB aim/block · R reload · Q or 1/2/3 weapons · C swap shoulder · E interact · F car · Space brake · H siren · Tab notebook · \` overlay.</p>
+      Combat: Weapon cycles fists/pistol/rifle · Aim toggles aim-down-sights (Block when unarmed) · hold Fire (drag on it to keep aiming) · Reload. · Cuff and Search appear next to someone you can arrest or pat down.<br>
+      <b>Keyboard:</b> WASD move · Shift run · click to lock the mouse · LMB fire/punch · RMB aim/block · R reload · Q or 1/2/3 weapons · C swap shoulder · E interact · G cuff · V search · F car · Space brake · H siren · Tab notebook · \` overlay.</p>
       <h3>Build</h3><p>${info}</p>
       <h3>Credits</h3><p>Engine: PlayCanvas (MIT). Textures, HDRI and props: Poly Haven (CC0). Characters and vehicles: Kenney (CC0), placeholder art.</p>`;
     body.querySelectorAll('.seg').forEach((seg) => {

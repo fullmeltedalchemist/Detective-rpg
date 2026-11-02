@@ -107,7 +107,7 @@ function cody(n: Npc, ctx: DrugCtx): DialogueNode {
       speaker: name, role: CODY_ROLE,
       text: s.flag('dealerSearched') ? 'I want a lawyer.' : 'What is this? I\'m just standing here.',
       choices: [
-        ...(s.flag('dealerSearched') ? [] : [{ label: 'Turn around. I\'m going to pat you down.', next: () => ({ speaker: name, role: CODY_ROLE, text: '…Whatever, man. (Search him with the prompt.)', choices: [leave()] }) } as Choice]),
+        ...(s.flag('dealerSearched') ? [] : [{ label: 'Turn around. I\'m going to pat you down.', next: () => ({ speaker: name, role: CODY_ROLE, text: '…Whatever, man.', choices: [leave()] }) } as Choice]),
         ...arrestNow,
         leave(),
       ],
@@ -300,7 +300,7 @@ export function evaluateDrugBooking(id: string, name: string, s: GameState): Dru
     };
   }
   if (id === 'kara') {
-    if (s.has('obsLookout')) return { outcome: 'weak', title: 'Held — acting as a lookout', rep: 0, jail: true, incidents: [], text: `${name} is booked as an accessory for warning a dealer about police. Okafor: "Misdemeanour. She\'ll be out by morning — but now she knows we know."` };
+    if (s.has('obsLookout') || s.has('karaPhone')) return { outcome: 'weak', title: 'Held — acting as a lookout', rep: 0, jail: true, incidents: [], text: `${name} is booked as an accessory for warning a dealer about police. Okafor: "Misdemeanour. She\'ll be out by morning — but now she knows we know."` };
     return { outcome: 'noGrounds', title: 'No grounds', rep: -2, jail: false, incidents: ['wrongful_arrest'], text: `"On what grounds? Talking on her phone?" ${name} is released.` };
   }
   if (id === 'andre') {

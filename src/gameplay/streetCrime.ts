@@ -407,19 +407,39 @@ export class StreetCrime implements DrugCtx {
     return s.has('obsDeal') || s.has('controlledBuy') || s.has('statementAndre');
   }
 
-  /** Frisk the dealer (he is surrendered, down or cuffed). */
-  friskDealer() {
-    const s = this.state, d = this.dealer;
-    if (s.flag('dealerSearched')) return;
-    s.set('dealerSearched');
-    const lawful = this.hasProbableCause();
-    s.set(lawful ? 'drugSearchLawful' : 'drugSearchUnlawful');
-    if (!lawful) this.g.combat.incident('illegal_search', d.pos, d);
-    const bought = s.has('controlledBuy');
-    this.g.hud.showExamine('Pat-down — Cody Brooks',
-      `Jacket, left pocket: <b>14 knotted baggies of blue pills</b>.<br>Front pocket: <b>$640</b> in tens and twenties${bought ? ' — including <b>your two marked twenties</b>' : ''}.<br>Back pocket: a <b>prepaid phone</b> and a single <b>van key</b>.` +
-      (lawful ? '' : '<br><br><span style="color:var(--red)">You had no probable cause to search him. A judge may throw this evidence out.</span>'),
-      'Bag it all', () => { this.collect('baggies'); this.collect('dealerCash'); this.collect('burner'); });
+  /** Pat-down results for the street cast (null = not one of ours). Evidence is bagged automatically. */
+  searchPerson(n: Npc): { items: { icon: string; name: string }[]; warn?: string } | null {
+    const s = this.state;
+    if (n.id === 'dealer') {
+      if (s.flag('dealerSearched')) return { items: [] };
+      s.set('dealerSearched');
+      const lawful = this.hasProbableCause();
+      s.set(lawful ? 'drugSearchLawful' : 'drugSearchUnlawful');
+      if (!lawful) this.g.combat.incident('illegal_search', n.pos, n);
+      for (const e of ['baggies', 'dealerCash', 'burner'] as EvidenceId[]) s.add(e);
+      const bought = s.has('controlledBuy');
+      return {
+        items: [
+          { icon: '💊', name: '14 knotted baggies of blue pills' },
+          { icon: '💰', name: `$640 in tens and twenties${bought ? ' — incl. your marked $40' : ''}` },
+          { icon: '📱', name: 'Prepaid phone (texts about "the van")' },
+          { icon: '🔑', name: 'Van key' },
+        ],
+        warn: lawful ? undefined : 'No probable cause for this search — a judge may throw it all out.',
+      };
+    }
+    if (n.id === 'kara') {
+      s.add('karaPhone');
+      return { items: [{ icon: '📱', name: 'Phone: texts to "C" — "5-0 on main", "clear now"' }, { icon: '👛', name: 'Wallet, $35' }] };
+    }
+    if (n.id === 'andre') {
+      if (!this.buyerJustBought(n.id)) return { items: [{ icon: '👛', name: 'Wallet, keys and a phone — nothing illegal' }] };
+      const seen = this.buyerDealSeen(n.id);
+      if (!seen) this.g.combat.incident('illegal_search', n.pos, n);
+      s.add('buyerBaggie');
+      return { items: [{ icon: '💊', name: 'One baggie of the same blue pills' }], warn: seen ? undefined : 'You hadn\'t seen him buy anything — no grounds to search him.' };
+    }
+    return null;
   }
 
   canSearchVan() { return this.state.flag('dealerSearched') && !this.state.flag('vanSearched'); }
@@ -460,12 +480,6 @@ export class StreetCrime implements DrugCtx {
   // ------------------------------------------------------------------ interactions
   registerInteractions(push: (it: { id: string; pos: pc.Vec3; radius: number; priority?: number; label: () => string | null; act: () => void; follow?: () => { x: number; y: number; z: number } }) => void) {
     const d = this.dealer, s = this.state;
-    // pat-down when he is stopped / on the ground / cuffed
-    push({
-      id: 'frisk:dealer', pos: d.pos, radius: 1.9, priority: 7, follow: () => d,
-      label: () => (!s.flag('dealerSearched') && d.alive && (d.state === 'surrender' || d.state === 'down' || (d.state === 'cuffed' && this.g.prisoner === d)) ? 'Search Cody' : null),
-      act: () => this.friskDealer(),
-    });
     // talk to a stopped / cuffed dealer (the normal Talk prompt is hidden in these states)
     push({
       id: 'talkStopped:dealer', pos: d.pos, radius: 2.2, priority: 6, follow: () => d,

@@ -60,6 +60,10 @@ export class Sfx {
 
   reload() { this.click(1200, 0.2); setTimeout(() => this.click(800, 0.25), 450); setTimeout(() => this.click(1500, 0.3), 1100); }
   dryFire() { this.click(2400, 0.15); }
+  /** Handcuffs ratcheting shut: two quick metallic clicks, one per wrist. */
+  cuffs() { this.click(3200, 0.22); setTimeout(() => this.click(2600, 0.2), 70); setTimeout(() => this.click(3400, 0.24), 420); setTimeout(() => this.click(2700, 0.2), 490); }
+  /** Pat-down: soft cloth rustle. */
+  rustle() { this.whoosh(); setTimeout(() => this.whoosh(), 380); setTimeout(() => this.whoosh(), 820); }
 
   thud(vol = 0.6) {
     const c = this.ctx; if (!c || !this.master || !this.noise) return;

@@ -3,7 +3,7 @@
 export type EvidenceId = 'slip' | 'cigpack' | 'lighter' | 'footage' | 'statementRosa' | 'statementNina' | 'statementVictor' | 'bag'
   // Case 9-201 — Corner Business
   | 'tipDelgado' | 'obsDeal' | 'obsVan' | 'obsLookout' | 'controlledBuy' | 'baggies' | 'dealerCash' | 'burner'
-  | 'buyerBaggie' | 'statementAndre' | 'vanStash' | 'ledger';
+  | 'buyerBaggie' | 'statementAndre' | 'vanStash' | 'ledger' | 'karaPhone';
 
 export type CaseId = '9-114' | '9-201';
 
@@ -37,6 +37,7 @@ export const EVIDENCE: Record<EvidenceId, EvidenceDef> = {
   buyerBaggie: { id: 'buyerBaggie', case: '9-201', name: "Buyer's baggie", icon: '💊', kind: 'physical', desc: 'One baggie of the same blue pills, taken from a buyer minutes after the exchange.' },
   statementAndre: { id: 'statementAndre', case: '9-201', name: "Andre's statement", icon: '🗣️', kind: 'testimony', desc: 'Andre Mills, a regular buyer: "Cody. Cody Brooks. He\'s out there every afternoon. Keeps the rest in his van so he\'s never holding much."' },
   vanStash: { id: 'vanStash', case: '9-201', name: 'Stash from the van', icon: '📦', kind: 'physical', desc: 'Shoebox behind the van\'s back seat: about 200 more pills, a digital scale and baggies, and $3,100 in cash.' },
+  karaPhone: { id: 'karaPhone', case: '9-201', name: "Kara's phone", icon: '📱', kind: 'physical', desc: 'Texts to a contact saved as "C": "5-0 on main" and, a minute later, "clear now". She warns the dealer when police come near.' },
   ledger: { id: 'ledger', case: '9-201', name: 'Ledger', icon: '📒', kind: 'record', desc: 'A pocket notebook of dates, initials and amounts — and weekly payments to "M". Lists $3,100 on hand. A lead to the supplier.' },
 };
 
