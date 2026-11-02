@@ -62,6 +62,12 @@ export class Hud {
   onSensitivity: (v: number) => void = () => {};
   diagOn = false;
   standingHtml: (() => string) | null = null;
+  /** Save slots for the menu: [slot, title, description or null if empty]. */
+  saveSlots: () => { slot: string; title: string; info: string | null }[] = () => [];
+  onSaveSlot: (slot: string) => void = () => {};
+  onLoadSlot: (slot: string) => void = () => {};
+  onExportSlot: (slot: string) => void = () => {};
+  onImport: (text: string) => void = () => {};
 
   constructor(private input: Input) {
     this.root = document.getElementById('ui')!;
@@ -165,11 +171,22 @@ export class Hud {
     this.loading.querySelector('.status')!.textContent = label;
   }
   loadError(msg: string) { this.loading.querySelector('.err')!.textContent = msg; }
-  ready(onStart: () => void) {
+  ready(onStart: () => void, cont?: { label: string; info: string; onContinue: () => void }) {
     this.loading.classList.add('ready');
     this.loading.querySelector('.status')!.textContent = 'Ready.';
     const btn = this.loading.querySelector('.start') as HTMLButtonElement;
-    btn.addEventListener('click', () => { this.loading.classList.add('done'); onStart(); }, { once: true });
+    let used = false;
+    const go = (f?: () => void) => { if (used) return; used = true; f?.(); this.loading.classList.add('done'); onStart(); };
+    btn.addEventListener('click', () => go(), { once: true });
+    if (cont) {
+      btn.textContent = 'New shift';
+      btn.classList.add('secondary');
+      const c = document.createElement('button');
+      c.className = 'start continue';
+      c.innerHTML = `${cont.label}<small>${cont.info}</small>`;
+      btn.parentElement!.insertBefore(c, btn);
+      c.addEventListener('click', () => go(cont.onContinue), { once: true });
+    }
   }
 
   // ---------- HUD ----------
@@ -350,7 +367,12 @@ export class Hud {
   openMenu(level: QualityLevel, info: string, sensitivity: number) {
     this.modalOpen = true;
     const body = this.menu.querySelector('.body')!;
+    const slots = this.saveSlots();
+    const slotHtml = slots.map((sl) => `<div class="slot" data-slot="${sl.slot}"><div><b>${sl.title}</b><small>${sl.info ?? 'Empty'}</small></div>
+        <span>${sl.slot === 'auto' ? '' : '<button data-a="save">Save</button>'}${sl.info ? '<button data-a="load">Load</button><button data-a="export" title="Download a backup">⤓</button>' : ''}</span></div>`).join('');
     body.innerHTML = `
+      <h3>Save game</h3><div class="slots">${slotHtml}</div>
+      <p class="savehint">Saved on this device (browser storage). The autosave runs every minute and after bookings. ⤓ downloads a backup file; <label class="imp">import a backup<input type="file" accept=".json,application/json" hidden></label>.</p>
       <div class="opt"><span>Graphics quality</span><div class="seg" data-k="q">
         ${(['low', 'medium', 'high'] as QualityLevel[]).map((l) => `<button data-v="${l}" class="${l === level ? 'on' : ''}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}
       </div></div>
@@ -360,13 +382,21 @@ export class Hud {
       <div class="opt"><span>Camera sensitivity</span><div class="seg" data-k="s">
         ${[0.7, 1, 1.4].map((v, i) => `<button data-v="${v}" class="${Math.abs(v - sensitivity) < 0.01 ? 'on' : ''}">${['Low', 'Normal', 'High'][i]}</button>`).join('')}
       </div></div>
-      <p>Changing quality reloads the page (your case progress in this build is not saved yet).</p>
+      <p>Changing quality reloads the page; your progress is autosaved first and restored.</p>
       <h3>Controls</h3>
       <p><b>Touch:</b> left side = move (push to the edge to run) · drag right side = look · big button = interact · Drive/Exit near the cruiser.<br>
       Combat: Weapon cycles fists/pistol/rifle · Aim toggles aim-down-sights (Block when unarmed) · hold Fire (drag on it to keep aiming) · Reload. · Cuff and Search appear next to someone you can arrest or pat down.<br>
       <b>Keyboard:</b> WASD move · Shift run · click to lock the mouse · LMB fire/punch · RMB aim/block · R reload · Q or 1/2/3 weapons · C swap shoulder · E interact · G cuff · V search · F car · Space brake · H siren · Tab notebook · \` overlay.</p>
       <h3>Build</h3><p>${info}</p>
-      <h3>Credits</h3><p>Engine: PlayCanvas (MIT). Textures, HDRI and props: Poly Haven (CC0). Characters and vehicles: Kenney (CC0), placeholder art.</p>`;
+      <h3>Credits</h3><p>Engine: PlayCanvas (MIT). Characters: Microsoft Rocketbox Avatar Library (MIT, © Microsoft). Animations: Quaternius Universal Animation Library (CC0). Textures, HDRI and props: Poly Haven (CC0). Leaves: ambientCG (CC0). Vehicles: Kenney (CC0).</p>`;
+    body.querySelectorAll('.slot button').forEach((b) => b.addEventListener('click', () => {
+      const slot = (b.closest('.slot') as HTMLElement).dataset.slot!, a = (b as HTMLElement).dataset.a;
+      if (a === 'save') { this.onSaveSlot(slot); this.openMenu(level, info, sensitivity); }
+      if (a === 'load') this.onLoadSlot(slot);
+      if (a === 'export') this.onExportSlot(slot);
+    }));
+    const file = body.querySelector('.imp input') as HTMLInputElement;
+    file.addEventListener('change', async () => { const f = file.files?.[0]; file.value = ''; if (f) this.onImport(await f.text()); });
     body.querySelectorAll('.seg').forEach((seg) => {
       seg.querySelectorAll('button').forEach((btn) => btn.addEventListener('click', () => {
         const k = (seg as HTMLElement).dataset.k, v = (btn as HTMLElement).dataset.v!;

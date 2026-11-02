@@ -51,6 +51,16 @@ export class PlayerCombat {
   aimAssist = 1;
   disabledFirearms = false;
   hitMarker = 0;
+
+  /** Save/load: magazine and reserve per weapon. */
+  ammoSnapshot(): Record<string, { mag: number; reserve: number }> {
+    const out: Record<string, { mag: number; reserve: number }> = {};
+    for (const [id, ws] of this.states) out[id] = { mag: ws.mag, reserve: ws.reserve };
+    return out;
+  }
+  restoreAmmo(a: Record<string, { mag: number; reserve: number }>) {
+    for (const [id, v] of Object.entries(a)) { const ws = this.states.get(id as WeaponId); if (ws) { ws.mag = v.mag; ws.reserve = v.reserve; } }
+  }
   private lastFireHeld = false;
 
   constructor(

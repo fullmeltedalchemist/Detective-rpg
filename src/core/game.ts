@@ -18,6 +18,7 @@ import { ENCOUNTER_NPCS } from '../gameplay/encounter';
 import { StreetCrime, STREET_NPCS } from '../gameplay/streetCrime';
 import { evaluateDrugBooking, drugObjective } from '../gameplay/drugCase';
 import { ArrestActions } from '../gameplay/arrests';
+import { captureSave, applySave, readSlot, writeSlot, parseSave, exportSave, SLOTS, type SlotId } from './save';
 import { WEAPONS } from '../combat/weapons';
 
 const MODELS = [
@@ -103,6 +104,7 @@ export class Game {
   private lookSens = 1;
   private shake = 0;
   private recklessCooldown = 0;
+  private autosaveTimer = 0;
   private frameTimes: number[] = [];
   private sessionFrames = 0;
   private sessionTime = 0;
@@ -179,11 +181,27 @@ export class Game {
       app.autoRender = false;
       (window as any).__renderOnce = () => { app.renderNextFrame = true; };
     }
-    this.hud.onQuality = (lvl) => { saveQuality(lvl); location.reload(); };
+    // keep progress across the quality reload
+    this.hud.onQuality = (lvl) => { saveQuality(lvl); if (this.started) { this.autosave(); this.setPendingLoad('auto'); } location.reload(); };
+    this.setupSaves();
     this.hud.onSensitivity = (v) => { this.lookSens = v; try { localStorage.setItem('casefiles.sens', String(v)); } catch { /* */ } };
     const failed = this.assets.failedKeys;
     if (failed.length) this.hud.loadError(`Some assets failed to load: ${failed.join(', ')}`);
-    this.hud.ready(() => { this.started = true; this.input.gameStarted = true; this.combat.sfx.unlock(); app.resizeCanvas(); });
+    const begin = () => { this.started = true; this.input.gameStarted = true; this.combat.sfx.unlock(); app.resizeCanvas(); };
+    // a load requested from the menu (or a quality change) arrives through a page reload
+    const pending = this.takePendingLoad();
+    const pendingData = pending ? readSlot(pending) : null;
+    if (pendingData) {
+      applySave(this, pendingData);
+      this.hud.ready(() => { begin(); this.hud.toast(`Loaded ${pending === 'auto' ? 'autosave' : 'slot ' + pending} · ${pendingData.summary}`, 3500); });
+      const st = this.loadingStartLabel(); if (st) st.textContent = 'Resume shift';
+    } else {
+      const auto = readSlot('auto');
+      this.hud.ready(begin, auto ? {
+        label: 'Continue', info: `${auto.summary} · ${timeAgo(auto.savedAt)}`,
+        onContinue: () => { applySave(this, auto); setTimeout(() => this.hud.toast(`Welcome back · ${auto.summary}`, 3200), 400); },
+      } : undefined);
+    }
     (window as any).__game = this;
   }
 
@@ -346,6 +364,47 @@ export class Game {
   }
 
   npc(id: string) { return this.npcs.find((n) => n.id === id)!; }
+
+  // ------------------------------------------------------------------ saves
+  private setupSaves() {
+    const label = (sl: SlotId) => (sl === 'auto' ? 'Autosave' : `Slot ${sl}`);
+    this.hud.saveSlots = () => SLOTS.map((sl) => {
+      const d = readSlot(sl);
+      return { slot: sl, title: label(sl), info: d ? `${d.summary} · ${timeAgo(d.savedAt)}` : null };
+    });
+    this.hud.onSaveSlot = (sl) => {
+      const ok = writeSlot(sl as SlotId, captureSave(this));
+      this.hud.toast(ok ? `💾  Saved to ${label(sl as SlotId)}` : 'Could not save — browser storage is unavailable (private browsing?)');
+    };
+    this.hud.onLoadSlot = (sl) => { this.setPendingLoad(sl as SlotId); location.reload(); };
+    this.hud.onExportSlot = (sl) => { const d = readSlot(sl as SlotId); if (d) exportSave(d); };
+    this.hud.onImport = (text) => {
+      try {
+        const d = parseSave(text);
+        const free = (['1', '2', '3'] as SlotId[]).find((sl) => !readSlot(sl)) ?? '3';
+        writeSlot(free, d);
+        this.hud.toast(`Imported backup into ${label(free)}`);
+        this.hud.closeMenu();
+        this.hud.openMenu(this.q.level, this.buildInfo(), this.lookSens);
+      } catch (e) { this.hud.toast(`Import failed: ${(e as Error).message}`); }
+    };
+    // iPhone Safari may discard a background tab: save when the page is hidden
+    const onHide = () => { if (this.started && document.visibilityState === 'hidden') this.autosave(); };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', () => { if (this.started) this.autosave(); });
+  }
+
+  /** Write the autosave (skipped mid-action so a load never lands in a half-finished arrest). */
+  autosave(): boolean {
+    if (!this.started || !this.refs || this.arrests?.busy) return false;
+    return writeSlot('auto', captureSave(this));
+  }
+
+  private setPendingLoad(sl: SlotId) { try { sessionStorage.setItem('casefiles.load', sl); } catch { /* */ } }
+  private takePendingLoad(): SlotId | null {
+    try { const v = sessionStorage.getItem('casefiles.load') as SlotId | null; sessionStorage.removeItem('casefiles.load'); return v; } catch { return null; }
+  }
+  private loadingStartLabel() { return document.querySelector('.loading .start') as HTMLElement | null; }
 
   private caseCtx(): CaseCtx {
     return {
@@ -557,6 +616,7 @@ export class Game {
     const kind = r.outcome === 'charged' ? '' : r.outcome === 'weak' ? 'warn' : 'bad';
     const evList = [...s.evidence].map((e) => `• ${EVIDENCE[e].name}`).join('<br>') || '• none';
     this.hud.showReport(stamp, kind, r.title, `${r.text}<br><br><b>Evidence on file</b><br>${evList}<br><br>Reputation ${r.rep >= 0 ? '+' : ''}${r.rep} → ${s.reputation}`);
+    this.autosave();
   }
 
   // ------------------------------------------------------------------
@@ -704,6 +764,10 @@ export class Game {
     this.combat.update(dt);
     this.street.update(dt);
     if (!modal) this.arrests.update(dt);
+    if (this.started && this.combat.player.alive) {
+      this.autosaveTimer += dt;
+      if (this.autosaveTimer > 60 && !modal && this.autosave()) this.autosaveTimer = 0;
+    }
     else this.hud.setArrestActions(null, null);
     this.player.character.postAnimate();
     for (const n of this.npcs) if (n.state !== 'inCar') n.character.postAnimate();
@@ -791,4 +855,13 @@ export class Game {
     const dev = this.app.graphicsDevice as any;
     return `${BUILD_ID} · ${dev.isWebGL2 ? 'WebGL 2' : dev.deviceType ?? 'unknown'} · ${dev.width}×${dev.height}`;
   }
+}
+
+function timeAgo(iso: string): string {
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (!isFinite(s)) return '';
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return new Date(iso).toLocaleDateString();
 }

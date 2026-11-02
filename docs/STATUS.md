@@ -66,7 +66,16 @@ Case 9-201 "Corner Business" — given by Ofc. Delgado outside Precinct 9 (avail
 - ✅ Hands-up, kneeling surrender, cuffed and wound-clutch poses rebuilt for the current characters
 - ✅ The parked van's tyres (they were rendering inside the body)
 - 🟡 The van is the low-poly Kenney model; the supplier "M" is only a lead (future case)
-- 🟡 Money has no use yet (shops and station upgrades are Phase D); progress is not saved between sessions (save system planned with Phase C)
+- 🟡 Money has no use yet (shops and station upgrades are Phase D)
+
+## Save system (v0.5.0)
+- ✅ Three save slots plus an autosave, stored on the device (browser storage); the autosave runs every minute, after every booking, and when the page is hidden (iPhone Safari can discard background tabs)
+- ✅ Saves keep: case progress and evidence, arrests and who is in a cell, who is dead, standing (trust, professional, IA, morality, criminal ties) and incident history, cash and buy money, weapons and ammo, your position and the cruiser's
+- ✅ Start screen offers Continue (with a summary of the save); the menu shows every slot with Save / Load / backup download, and imports a backup file
+- ✅ Changing graphics quality keeps your progress (autosave → reload → restore)
+- ✅ Versioned format with forward migration; saves from a newer game or files that aren't saves are rejected; a corrupted slot shows as empty
+- ✅ tests/save.py — 38 checks (round trip through a real page reload, Continue, quality change, export/import, bad files)
+- 🟡 Saves live in this browser on this device only (no cloud sync); use the backup download to move a save to another device
 
 ## Phases C–E
 - ⬜ Not started (see MASTER_DESIGN.md)
