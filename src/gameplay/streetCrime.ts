@@ -337,6 +337,20 @@ export class StreetCrime implements DrugCtx {
 
   get recentlyWarned() { return this.t - this.warnedAt < 90; }
 
+  /** Test/screenshot hook: put the corner back to a calm state with a sale about to start. */
+  debugResetCorner() {
+    const d = this.dealer, k = this.kara;
+    this.dismissBuyer();
+    if (d.alive && !this.state.jailed.has('dealer')) { d.release('idle'); d.setState('idle'); d.character.visible = true; d.teleport(CORNER.x, CORNER.z, CORNER.yaw); }
+    if (k.alive && !this.state.jailed.has('kara')) { k.release('idle'); k.setState('idle'); k.teleport(LOOKOUT.x, LOOKOUT.z, LOOKOUT.yaw); }
+    this.dealerHiddenUntil = -1;
+    this.warnedAt = -999;
+    this.hideAndre(0);
+    this.dealsSinceReup = 0;
+    this.setPhase('waiting');
+    this.nextDealAt = this.t + 0.5;
+  }
+
   // ------------------------------------------------------------------ confrontation
   /** Police stop: does he comply or run? */
   confront(): 'comply' | 'run' {
