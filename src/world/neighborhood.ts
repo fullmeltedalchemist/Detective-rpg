@@ -7,6 +7,7 @@ import { Props } from './props';
 import { signTexture, stripeTexture, tapeTexture, laneTexture, windowTexture, paperTexture } from './signs';
 import type { Assets } from '../core/assets';
 import type { QualityPreset } from '../core/quality';
+import { Vegetation } from './vegetation';
 
 /**
  * "Harbor Street" — a compact, dense neighbourhood:
@@ -60,13 +61,13 @@ export function buildNeighborhood(app: pc.Application, root: pc.Entity, world: C
   const counterTop = mats.flat('counterTop', C(0.18, 0.18, 0.19), { gloss: 0.75 });
   const curbMat = mats.flat('curb', C(0.62, 0.61, 0.58), { gloss: 0.2 });
   const glass = mats.glass();
+  const roofMat = mats.flat('roof', C(0.32, 0.32, 0.33), { gloss: 0.15 });
+  const plinthMat = mats.surface('concrete', C(0.66, 0.64, 0.6), 'plinth');
   const glassDark = mats.glass('dark', C(0.25, 0.3, 0.34));
   const whitePaint = mats.flat('whitePaint', C(0.92, 0.92, 0.88), { gloss: 0.3 });
   const yellowPaint = mats.flat('yellowPaint', C(0.95, 0.75, 0.15), { gloss: 0.3 });
   const warmLight = mats.flat('warmLight', C(1, 0.9, 0.7), { emissive: C(1, 0.82, 0.55), emissiveIntensity: 3 });
   const coolLight = mats.flat('coolLight', C(0.9, 0.95, 1), { emissive: C(0.9, 0.95, 1), emissiveIntensity: 2.6 });
-  const leaf = mats.surface('grass', C(0.55, 0.7, 0.45), 'leaf');
-  const bark = mats.flat('bark', C(0.25, 0.18, 0.12), { gloss: 0.1 });
   const dumpsterGreen = mats.flat('dumpster', C(0.12, 0.3, 0.2), { gloss: 0.35, metal: 0.4 });
   const winTex = windowTexture(device);
   const upperWin = mats.textured('upperWin', winTex, { gloss: 0.9 });
@@ -158,7 +159,7 @@ export function buildNeighborhood(app: pc.Application, root: pc.Entity, world: C
     openings: [{ at: 13.6, width: 3.2, kind: 'window' }, { at: 18, width: 2, kind: 'door' }, { at: 22.2, width: 4, kind: 'window' }],
     sideDoor: { wall: 'e', at: -17, width: 1.6 },
     interior: { floor: woodFloor, wall: plasterGreen, ceiling: plaster },
-  }, world));
+  }, world, roofMat, plinthMat));
   interiors.push({ name: 'Café Luna', x0: 11, x1: 25, z0: -21, z1: -9 });
 
   // First Civic Bank
@@ -167,7 +168,7 @@ export function buildNeighborhood(app: pc.Application, root: pc.Entity, world: C
     ext: stucco, trim: trimStone, glass, upperWindow: upperWin, windowSpacing: 3.6,
     openings: [{ at: 33.2, width: 2.6, kind: 'window' }, { at: 39, width: 2.2, kind: 'door' }, { at: 44.8, width: 2.6, kind: 'window' }],
     interior: { floor: marble, wall: beige, ceiling: plaster },
-  }, world));
+  }, world, roofMat, plinthMat));
   interiors.push({ name: 'First Civic Bank', x0: 30, x1: 48, z0: -23, z1: -9 });
   // Bank columns
   for (const x of [31.2, 36.6, 41.4, 46.8]) {
@@ -182,7 +183,7 @@ export function buildNeighborhood(app: pc.Application, root: pc.Entity, world: C
     openings: [{ at: 14.5, width: 3, kind: 'window' }, { at: 19.5, width: 3, kind: 'window' }, { at: 24, width: 2.4, kind: 'door' }, { at: 28.5, width: 3, kind: 'window' }, { at: 33.5, width: 3, kind: 'window' }],
     sideDoor: { wall: 'e', at: 21, width: 1.8 },
     interior: { floor: tiles, wall: plasterBlue, ceiling: plaster },
-  }, world));
+  }, world, roofMat, plinthMat));
   interiors.push({ name: 'Precinct 9', x0: 11, x1: 37, z0: 9, z1: 25 });
   // Station entrance canopy + steps
   b.box(trimDark, 24, 3.3, 7.9, 6, 0.2, 2.4, { collide: false });
@@ -190,19 +191,19 @@ export function buildNeighborhood(app: pc.Application, root: pc.Entity, world: C
 
   // Facade-only neighbours (closed; honest "Closed" interactions are added in gameplay)
   buildBuilding(b, { name: 'apt-ne', x0: 48.5, x1: 64, z0: -26, z1: -9, front: 's', height: 13.5, ext: brickDark, trim: trimWhite, glass: glassDark, upperWindow: upperWin,
-    openings: [{ at: 51, width: 2.6, kind: 'window' }, { at: 55, width: 1.6, kind: 'door' }, { at: 59.5, width: 3.4, kind: 'window' }] }, world);
+    openings: [{ at: 51, width: 2.6, kind: 'window' }, { at: 55, width: 1.6, kind: 'door' }, { at: 59.5, width: 3.4, kind: 'window' }] }, world, roofMat, plinthMat);
   buildBuilding(b, { name: 'apt-ne2', x0: 64, x1: 72, z0: -26, z1: -9, front: 's', height: 10, ext: beige, trim: trimStone, glass: glassDark, upperWindow: upperWin,
-    openings: [{ at: 68, width: 3, kind: 'window' }] }, world);
+    openings: [{ at: 68, width: 3, kind: 'window' }] }, world, roofMat, plinthMat);
   buildBuilding(b, { name: 'shops-sw1', x0: -30, x1: -9, z0: 9, z1: 22, front: 'n', height: 9.5, ext: brickRed, trim: trimDark, glass: glassDark, upperWindow: upperWin,
-    openings: [{ at: -26, width: 3.4, kind: 'window' }, { at: -22.5, width: 1.8, kind: 'door' }, { at: -17, width: 4, kind: 'window' }, { at: -12, width: 3, kind: 'window' }] }, world);
+    openings: [{ at: -26, width: 3.4, kind: 'window' }, { at: -22.5, width: 1.8, kind: 'door' }, { at: -17, width: 4, kind: 'window' }, { at: -12, width: 3, kind: 'window' }] }, world, roofMat, plinthMat);
   buildBuilding(b, { name: 'shops-sw2', x0: -48, x1: -30, z0: 9, z1: 24, front: 'n', height: 12, ext: stucco, trim: trimStone, glass: glassDark, upperWindow: upperWin,
-    openings: [{ at: -44, width: 4, kind: 'window' }, { at: -39, width: 1.8, kind: 'door' }, { at: -34, width: 4, kind: 'window' }] }, world);
+    openings: [{ at: -44, width: 4, kind: 'window' }, { at: -39, width: 1.8, kind: 'door' }, { at: -34, width: 4, kind: 'window' }] }, world, roofMat, plinthMat);
   buildBuilding(b, { name: 'apt-sw3', x0: -62, x1: -48, z0: 9, z1: 26, front: 'n', height: 14.5, ext: brickDark, trim: trimWhite, glass: glassDark, upperWindow: upperWin,
-    openings: [{ at: -55, width: 3, kind: 'window' }] }, world);
+    openings: [{ at: -55, width: 3, kind: 'window' }] }, world, roofMat, plinthMat);
   buildBuilding(b, { name: 'apt-nw', x0: -62, x1: -42, z0: -26, z1: -9, front: 's', height: 13, ext: brickRed, trim: trimStone, glass: glassDark, upperWindow: upperWin,
-    openings: [{ at: -57, width: 3, kind: 'window' }, { at: -52, width: 1.8, kind: 'door' }, { at: -47, width: 3.2, kind: 'window' }] }, world);
+    openings: [{ at: -57, width: 3, kind: 'window' }, { at: -52, width: 1.8, kind: 'door' }, { at: -47, width: 3.2, kind: 'window' }] }, world, roofMat, plinthMat);
   buildBuilding(b, { name: 'apt-se', x0: 59, x1: 72, z0: 9, z1: 26, front: 'n', height: 12.5, ext: beige, trim: trimDark, glass: glassDark, upperWindow: upperWin,
-    openings: [{ at: 62.5, width: 3, kind: 'window' }, { at: 68.5, width: 3, kind: 'window' }] }, world);
+    openings: [{ at: 62.5, width: 3, kind: 'window' }, { at: 68.5, width: 3, kind: 'window' }] }, world, roofMat, plinthMat);
 
   // Backdrop silhouettes beyond the playable edge so the horizon isn't empty
   const backdrop: [number, number, number, number, number, pc.Material][] = [
@@ -449,6 +450,24 @@ export function buildNeighborhood(app: pc.Application, root: pc.Entity, world: C
   props.place('WetFloorSign_01', 27.5, 12.0, { targetHeight: 0.62, yaw: 30 });
   props.place('potted_plant_04', 11.8, 9.8, { targetHeight: 1.3, batch: propsBatch });
   props.place('wall_clock', 24, 24.66, { y: FLOOR_Y + 3.1, yaw: 180, targetHeight: 0.45, castShadows: false });
+  // ---- environment detail pass (Poly Haven CC0) ----
+  for (const [x, z, yaw] of [[-7.4, -13, 90], [36.5, 7.5, 0], [-27, -7.5, 180], [55, 7.5, 0], [7.4, 13, -90]] as [number, number, number][]) {
+    props.place('fire_hydrant', x, z, { yaw, keep: ['fire_hydrant'], drop: ['aged'], targetHeight: 0.8, collide: true, batch: propsBatch });
+  }
+  // fire escapes on the apartment blocks (street side)
+  props.place('modular_fire_escape', 57.5, -9.75, { yaw: 0, y: 2.6, scale: 1, castShadows: true });
+  props.place('modular_fire_escape', -55, -9.75, { yaw: 0, y: 2.4, scale: 1, castShadows: true });
+  props.place('modular_fire_escape', -56, 9.75, { yaw: 180, y: 2.6, scale: 1, castShadows: true });
+  // roller shutters pulled down on the closed shopfronts
+  props.place('rollershutter_door', -12, 8.85, { yaw: 180, y: FLOOR_Y + 0.85, keep: ['rollershutter_door'], drop: ['graffiti'], scale: 1.0 });
+  props.place('rollershutter_door', -34, 8.85, { yaw: 180, y: FLOOR_Y + 0.85, keep: ['rollershutter_door_graffiti'], scale: 1.0 });
+  props.place('rollershutter_door', 68, -8.85, { yaw: 0, y: FLOOR_Y + 0.85, keep: ['rollershutter_door'], drop: ['graffiti'], scale: 1.0 });
+  // alley lighting + service boxes
+  props.place('security_light', 25.2, -16, { yaw: 90, y: 3.2, castShadows: false });
+  props.place('security_light', 29.85, -24, { yaw: -90, y: 3.2, castShadows: false });
+  props.place('utility_box_02', 29.5, -29.5, { yaw: -90, collide: true });
+  props.place('utility_box_02', 36.6, 33, { yaw: 180, collide: true });
+
   // street furniture
   props.place('modular_street_seating', -20, -8.0, { targetHeight: 0.9, collide: true, keep: ['crossbar', 'legs', 'seat', 'back_support', 'arm_rest'], scale: 0.9 });
   props.place('modular_street_seating', -26, -24.3, { targetHeight: 0.9, collide: true });
@@ -465,33 +484,23 @@ export function buildNeighborhood(app: pc.Application, root: pc.Entity, world: C
     props.place('shrub_03', x, z, { keep: ['shrub_03_a'], targetHeight: 0.9, batch: propsBatch, scale: 2.4 });
   }
 
-  // ---------- Trees ----------
-  const treeBatch = app.batcher.addGroup('trees', false, 120).id;
+  // ---------- Trees & hedges (bark trunks + CC0 leaf-scan foliage cards) ----------
+  const veg = new Vegetation(app, assets, q);
   const treeSpots: [number, number, number][] = [
-    [-34, -16, 1.1], [-19, -16, 0.95], [-30, -25, 1.2], [-15, -23, 1.0], [-38, -20, 0.9], [-23, -13.5, 0.85],
-    [-45, -7, 0.8], [-30, -7, 0.85], [50, -7, 0.8], [60, -7, 0.85], [-50, 7, 0.8], [-34, 7, 0.85], [60, 7, 0.8],
-    [7, -32, 0.85], [-7, 30, 0.8],
+    [-34, -16, 1.0], [-19, -16, 0.9], [-30, -25, 1.1], [-15, -23, 0.95], [-38, -20, 0.85], [-23, -13.5, 0.8],
+    [-45, -7.4, 0.75], [-30, -7.4, 0.8], [50, -7.4, 0.75], [62, -7.4, 0.8], [-50, 7.4, 0.75], [-34, 7.4, 0.8], [62, 7.4, 0.75],
+    [7.4, -32, 0.8], [-7.4, 30, 0.75], [-7.4, -30, 0.8], [7.4, 18, 0.72],
   ];
-  for (const [x, z, s] of treeSpots) {
-    const t = new pc.Entity('tree');
-    const trunk = new pc.Entity('trunk');
-    trunk.addComponent('render', { type: 'cylinder', material: bark, batchGroupId: treeBatch });
-    trunk.setLocalScale(0.28 * s, 3.2 * s, 0.28 * s);
-    trunk.setLocalPosition(0, 1.6 * s, 0);
-    t.addChild(trunk);
-    const clumps: [number, number, number, number][] = [[0, 3.9, 0, 2.6], [0.9, 3.5, 0.4, 1.9], [-0.8, 3.6, -0.5, 2.0], [0.2, 4.6, -0.3, 1.8], [-0.3, 3.3, 0.9, 1.6]];
-    for (const [cx, cy, cz, r] of clumps) {
-      const c = new pc.Entity('leaves');
-      c.addComponent('render', { type: 'sphere', material: leaf, batchGroupId: treeBatch });
-      c.setLocalPosition(cx * s, cy * s, cz * s);
-      c.setLocalScale(r * s, r * s * 0.85, r * s);
-      t.addChild(c);
-    }
-    root.addChild(t);
-    t.setPosition(x, world.groundHeight(x, z), z);
-    t.setEulerAngles(0, (x * 37 + z * 13) % 360, 0);
-    world.addBox(x, 1.5, z, 0.4 * s, 3, 0.4 * s, 'tree').blocksCamera = false;
+  treeSpots.forEach(([x, z, s], i) => veg.tree(root, world, x, z, s, i));
+  // tree pits on the sidewalk
+  for (const [x, z] of treeSpots) if (Math.abs(z) < 9 || Math.abs(x) < 9) {
+    const pit = new pc.Entity('pit');
+    pit.addComponent('render', { type: 'box', material: mats.flat('pitSoil', C(0.17, 0.13, 0.1), { gloss: 0.05 }), castShadows: false });
+    pit.setLocalScale(1.3, 0.02, 1.3); pit.setPosition(x, FLOOR_Y + 0.005, z); root.addChild(pit);
   }
+  // park hedges around the lawn
+  veg.hedge(root, -26, -12.4, 26, 0); veg.hedge(root, -26, -27.6, 26, 0);
+  veg.hedge(root, -39.6, -20, 14, 90); veg.hedge(root, -12.4, -16.5, 6, 90); veg.hedge(root, -12.4, -24, 6, 90);
 
   // ---------- Evidence objects ----------
   const evidenceEntities: Record<string, pc.Entity> = {};

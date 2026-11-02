@@ -5,7 +5,7 @@ right-side drag rotates the camera, the on-screen interact button opens a dialog
 import sys, time, os
 from playwright.sync_api import sync_playwright
 
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/?quality=low'
+URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/?quality=low&norender=1'
 os.makedirs('tests/out', exist_ok=True)
 
 
@@ -16,11 +16,10 @@ def check(name, cond, detail=''):
 
 
 def game_time(page, secs, timeout=120):
-    page.evaluate('() => { window.__gt = 0; window.__game.app.on("update", window.__gtf = (dt) => { window.__gt += Math.min(dt, 1/15); }); }')
+    page.evaluate('() => { window.__gt0 = window.__game.time; }')
     t0 = time.time()
-    while time.time() - t0 < timeout and page.evaluate('() => window.__gt') < secs:
+    while time.time() - t0 < timeout and page.evaluate('() => window.__game.time - window.__gt0') < secs:
         time.sleep(0.2)
-    page.evaluate('() => window.__game.app.off("update", window.__gtf)')
 
 
 with sync_playwright() as p:

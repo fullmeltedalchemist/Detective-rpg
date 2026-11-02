@@ -17,6 +17,9 @@ export const SURFACES = {
   plaster: { tex: 'painted_plaster_wall', scale: 3 },
   grass: { tex: 'leafy_grass', scale: 3 },
   concrete: { tex: 'concrete_floor_02', scale: 4 },
+  bark: { tex: 'bark_platanus', scale: 1 },
+  wornAsphalt: { tex: 'worn_asphalt', scale: 5 },
+  cobble: { tex: 'cobblestone_floor_08', scale: 2 },
 } as const;
 
 export type SurfaceName = keyof typeof SURFACES;

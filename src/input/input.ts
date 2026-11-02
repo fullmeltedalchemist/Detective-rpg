@@ -2,7 +2,8 @@
  * Unified input: keyboard + mouse on desktop, virtual joystick + drag-to-look on touch.
  * Gameplay code reads `move`, `look`, and edge-triggered `pressed(action)`.
  */
-export type Action = 'interact' | 'vehicle' | 'notebook' | 'menu' | 'siren' | 'diag' | 'brake';
+export type Action = 'interact' | 'vehicle' | 'notebook' | 'menu' | 'siren' | 'diag' | 'brake'
+  | 'reload' | 'weapon' | 'weapon1' | 'weapon2' | 'weapon3' | 'shoulder' | 'aimToggle';
 
 export class Input {
   /** Movement: x = right, y = forward, magnitude 0..1 */
@@ -14,6 +15,14 @@ export class Input {
   enabled = true;
   /** Set when the player has used touch at all (affects UI). */
   touchMode = false;
+  /** Fire / punch held (mouse LMB when pointer-locked, or the touch fire button). */
+  fireHeld = false;
+  /** Aim / block held (mouse RMB). Touch uses the aimToggle action instead. */
+  aimHeld = false;
+  touchFireHeld = false;
+  /** When true, a plain mouse click requests pointer lock (desktop combat). */
+  wantPointerLock = true;
+  gameStarted = false;
 
   private keys = new Set<string>();
   private edge = new Set<Action>();
@@ -40,7 +49,8 @@ export class Input {
 
     window.addEventListener('keydown', (e) => this.onKey(e, true));
     window.addEventListener('keyup', (e) => this.onKey(e, false));
-    window.addEventListener('blur', () => { this.keys.clear(); this.releaseJoy(); this.lookId = null; });
+    window.addEventListener('blur', () => { this.keys.clear(); this.releaseJoy(); this.lookId = null; this.mouseFire = false; this.aimHeld = false; this.touchFireHeld = false; });
+    document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== canvas) { this.mouseFire = false; } });
 
     // Joystick
     this.zoneEl.addEventListener('pointerdown', (e) => {
@@ -79,6 +89,15 @@ export class Input {
     // Look: touch drag anywhere on canvas, mouse drag or pointer lock on desktop
     canvas.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse') {
+        if (document.pointerLockElement === canvas) {
+          if (e.button === 0) this.mouseFire = true;
+          if (e.button === 2) this.aimHeld = true;
+          return;
+        }
+        if (this.gameStarted && this.wantPointerLock && e.button === 0) {
+          (canvas.requestPointerLock as any)?.call(canvas)?.catch?.(() => {});
+        }
+        if (e.button === 2) { this.aimHeld = true; return; }
         this.mouseDown = true;
         this.lookLast = { x: e.clientX, y: e.clientY };
         return;
@@ -107,7 +126,11 @@ export class Input {
       this.lookLast = { x: e.clientX, y: e.clientY };
     });
     const endLook = (e: PointerEvent) => {
-      if (e.pointerType === 'mouse') { this.mouseDown = false; return; }
+      if (e.pointerType === 'mouse') {
+        if (e.button === 0) { this.mouseDown = false; this.mouseFire = false; }
+        if (e.button === 2) this.aimHeld = false;
+        return;
+      }
       if (e.pointerId === this.lookId) this.lookId = null;
     };
     canvas.addEventListener('pointerup', endLook);
@@ -146,6 +169,7 @@ export class Input {
       const map: Record<string, Action> = {
         KeyE: 'interact', Enter: 'interact', KeyF: 'vehicle', Tab: 'notebook', KeyN: 'notebook', KeyJ: 'notebook',
         Escape: 'menu', KeyH: 'siren', Backquote: 'diag', F3: 'diag',
+        KeyR: 'reload', KeyQ: 'weapon', Digit1: 'weapon1', Digit2: 'weapon2', Digit3: 'weapon3', KeyC: 'shoulder',
       };
       const a = map[k];
       if (a) { this.edge.add(a); if (k === 'Tab' || k === 'F3') e.preventDefault(); }
@@ -184,11 +208,13 @@ export class Input {
       this.sprint = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
     }
     this.brake = this.keys.has('Space') || this.brakeHeld;
+    this.fireHeld = this.enabled && (this.mouseFire || this.touchFireHeld);
     if (!this.enabled) { x = 0; y = 0; }
     this.move.x = x; this.move.y = y;
   }
 
   brakeHeld = false;
+  private mouseFire = false;
 
   consumeLook() {
     const l = { x: this.look.x, y: this.look.y };

@@ -1,0 +1,73 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Case Files build preview</title>
+<style>
+:root{--bg:#0f1115;--fg:#e9ecef;--mut:#9aa3ad;--card:#171a20;--line:#2a2f37;--acc:#e8b44c;--ok:#5cc58a;--bad:#e0564a}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#f6f5f2;--fg:#15181d;--mut:#5b636d;--card:#fff;--line:#e2e0da;--acc:#9a6b10;--ok:#1f8a4c;--bad:#b3342a}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:26px;margin:0 0 4px} h2{margin:34px 0 10px;font-size:19px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.meta{color:var(--mut);font-size:14px} a{color:var(--acc)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{width:100%;display:block} figcaption{padding:8px 10px;font-size:14px}
+details{padding:0 10px 10px;font-size:13px;color:var(--mut)} details img{margin-top:6px;border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card)} td,th{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.ok{color:var(--ok);font-weight:600} .bad{color:var(--bad);font-weight:600}
+.note{background:var(--card);border-left:3px solid var(--acc);padding:10px 12px;border-radius:6px;font-size:14px}
+code{font-size:12px}
+</style></head><body><main>
+<h1>Case Files — build preview</h1>
+<p class="meta">v0.3.0 · branch <code>phase-a-combat</code> · commit <a href="https://github.com/fullmeltedalchemist/Detective-rpg/commit/d584b13e3698199254fe8b970e46d56d9093bf6b"><code>d584b13</code></a> · generated 2026-11-02 18:11 UTC</p>
+<p><a href="../">▶ Play this build</a> · <a href="../health.json">health.json</a> · <a href="report.json">report.json</a> · <a href="report.md">report.md</a> · stable v0.1: <a href="https://detective-rpg-case-files.netlify.app">detective-rpg-case-files.netlify.app</a></p>
+<p class="note"><b>How these were made:</b> Headless Chrome on a 2-core Linux container with SwiftShader (CPU) WebGL 2. Touch tests use iPhone emulation. NOT real iPhone hardware. Screenshots are real frames from this build, rendered on a CPU; real phones render the same scene on the GPU.</p>
+<h2>Automated tests</h2><table><tr><th>Suite</th><th>Passed</th><th>Failed</th><th>Failures</th></tr><tr><td>Case 9-114 regression (smoke.py)</td><td class="ok">68</td><td class="ok">0</td><td></td></tr>
+<tr><td>Touch controls, emulated iPhone (touch.py)</td><td class="ok">9</td><td class="ok">0</td><td></td></tr>
+<tr><td>Combat (combat.py)</td><td class="ok">30</td><td class="ok">0</td><td></td></tr>
+<tr><td>Hit reactions (hits.py)</td><td class="ok">30</td><td class="ok">0</td><td></td></tr></table>
+<h2>Screenshots</h2><div class="grid"><figure><img src="shots/street_main.webp" alt="Main St looking east from the crossing" loading="lazy"><figcaption>Main St looking east from the crossing</figcaption>
+<details><summary>Before / after (v0.1 → now, 11.4% pixel change)</summary><img src="shots/street_main_compare.webp" alt="comparison" loading="lazy"></details></figure>
+<figure><img src="shots/street_cafe.webp" alt="Café Luna and First Civic Bank storefronts" loading="lazy"><figcaption>Café Luna and First Civic Bank storefronts</figcaption>
+<details><summary>Before / after (v0.1 → now, 14.0% pixel change)</summary><img src="shots/street_cafe_compare.webp" alt="comparison" loading="lazy"></details></figure>
+<figure><img src="shots/street_station.webp" alt="Precinct 9 police station" loading="lazy"><figcaption>Precinct 9 police station</figcaption>
+<details><summary>Before / after (v0.1 → now, 15.0% pixel change)</summary><img src="shots/street_station_compare.webp" alt="comparison" loading="lazy"></details></figure>
+<figure><img src="shots/park.webp" alt="Pocket park, trees and hedges" loading="lazy"><figcaption>Pocket park, trees and hedges</figcaption>
+<details><summary>Before / after (v0.1 → now, 16.3% pixel change)</summary><img src="shots/park_compare.webp" alt="comparison" loading="lazy"></details></figure>
+<figure><img src="shots/alley.webp" alt="Crime-scene alley beside the bank" loading="lazy"><figcaption>Crime-scene alley beside the bank</figcaption>
+<details><summary>Before / after (v0.1 → now, 6.1% pixel change)</summary><img src="shots/alley_compare.webp" alt="comparison" loading="lazy"></details></figure>
+<figure><img src="shots/interior_cafe.webp" alt="Interior: Café Luna" loading="lazy"><figcaption>Interior: Café Luna</figcaption>
+<details><summary>Before / after (v0.1 → now, 16.6% pixel change)</summary><img src="shots/interior_cafe_compare.webp" alt="comparison" loading="lazy"></details></figure>
+<figure><img src="shots/interior_bank.webp" alt="Interior: First Civic Bank" loading="lazy"><figcaption>Interior: First Civic Bank</figcaption>
+<details><summary>Before / after (v0.1 → now, 10.0% pixel change)</summary><img src="shots/interior_bank_compare.webp" alt="comparison" loading="lazy"></details></figure>
+<figure><img src="shots/interior_station.webp" alt="Interior: Precinct 9 lobby" loading="lazy"><figcaption>Interior: Precinct 9 lobby</figcaption>
+<details><summary>Before / after (v0.1 → now, 8.0% pixel change)</summary><img src="shots/interior_station_compare.webp" alt="comparison" loading="lazy"></details></figure>
+<figure><img src="shots/characters.webp" alt="Characters: detective, sergeant, café owner, teller, suspect, witnesses" loading="lazy"><figcaption>Characters: detective, sergeant, café owner, teller, suspect, witnesses</figcaption>
+</figure>
+<figure><img src="shots/character_closeup.webp" alt="Close-up: the detective (Rocketbox avatar, UAL animation)" loading="lazy"><figcaption>Close-up: the detective (Rocketbox avatar, UAL animation)</figcaption>
+</figure>
+<figure><img src="shots/combat_aim.webp" alt="Combat: aiming down sights with the service pistol" loading="lazy"><figcaption>Combat: aiming down sights with the service pistol</figcaption>
+</figure>
+<figure><img src="shots/combat_lot.webp" alt="Combat: armed suspects in the back lot (Oak Ave)" loading="lazy"><figcaption>Combat: armed suspects in the back lot (Oak Ave)</figcaption>
+</figure>
+<figure><img src="shots/driving2.webp" alt="Cruiser on Main St" loading="lazy"><figcaption>Cruiser on Main St</figcaption>
+</figure></div>
+<h2>Hit reactions</h2><div class="grid"><figure><img src="shots/hit_flinch.webp" alt="First shot: flinches and drops into cover (a bystander ducks once)" loading="lazy"><figcaption>First shot: flinches and drops into cover (a bystander ducks once)</figcaption></figure>
+<figure><img src="shots/hit_repeated.webp" alt="Repeated hits while ducking: flinches only, no squat cycling or restarts" loading="lazy"><figcaption>Repeated hits while ducking: flinches only, no squat cycling or restarts</figcaption></figure>
+<figure><img src="shots/death_fall_1.webp" alt="Fatal hit: one fall, blended from the current pose" loading="lazy"><figcaption>Fatal hit: one fall, blended from the current pose</figcaption></figure>
+<figure><img src="shots/death_fall_2.webp" alt="Falling backwards, away from the shooter" loading="lazy"><figcaption>Falling backwards, away from the shooter</figcaption></figure>
+<figure><img src="shots/death_fall_3.webp" alt="At rest: body held still on the ground" loading="lazy"><figcaption>At rest: body held still on the ground</figcaption></figure>
+<figure><img src="shots/knockout.webp" alt="Knocked out: stays down until recovery begins" loading="lazy"><figcaption>Knocked out: stays down until recovery begins</figcaption></figure>
+<figure><img src="shots/knockout_recover.webp" alt="Recovered: gets up once, after the knock-out ends" loading="lazy"><figcaption>Recovered: gets up once, after the knock-out ends</figcaption></figure></div>
+<h2>Performance</h2><p class="note">FPS below is software-rendered on a CPU and is NOT representative of a phone GPU. Real-device numbers must come from the in-game overlay on an iPhone.</p><table><tr><th>View</th><th>In-game overlay (software render)</th></tr><tr><td>street_main</td><td><code>FPS now 12  (97.1 ms) | 5s avg 10  1% low 10  session 10 | draws 621  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
+<tr><td>street_cafe</td><td><code>FPS now 11  (99.0 ms) | 5s avg 10  1% low 10  session 10 | draws 431  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
+<tr><td>street_station</td><td><code>FPS now 10  (99.3 ms) | 5s avg 10  1% low 10  session 10 | draws 515  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
+<tr><td>park</td><td><code>FPS now 13  (95.2 ms) | 5s avg 10  1% low 10  session 10 | draws 617  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
+<tr><td>alley</td><td><code>FPS now 13  (95.8 ms) | 5s avg 10  1% low 10  session 10 | draws 359  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
+<tr><td>interior_cafe</td><td><code>FPS now 11  (96.4 ms) | 5s avg 10  1% low 10  session 10 | draws 389  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
+<tr><td>interior_bank</td><td><code>FPS now 10  (99.6 ms) | 5s avg 10  1% low 10  session 10 | draws 297  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
+<tr><td>interior_station</td><td><code>FPS now 13  (95.8 ms) | 5s avg 10  1% low 10  session 10 | draws 472  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
+<tr><td>characters</td><td><code>FPS now 10  (99.8 ms) | 5s avg 10  1% low 10  session 10 | draws 480  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
+<tr><td>character_closeup</td><td><code>FPS now 11  (96.5 ms) | 5s avg 10  1% low 10  session 10 | draws 449  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
+<tr><td>combat_aim</td><td><code>FPS now 13  (95.6 ms) | 5s avg 10  1% low 10  session 10 | draws 415  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
+<tr><td>combat_lot</td><td><code>FPS now 10  (99.7 ms) | 5s avg 10  1% low 10  session 10 | draws 337  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn   | v0.3.0 · 2b3178b</code></td></tr>
+<tr><td>driving2</td><td><code>FPS now 11  (97.0 ms) | 5s avg 10  1% low 10  session 10 | draws 529  shadow 0.0 ms | res 768×432 @0.80x | quality medium +dyn  0 km/h | v0.3.0 · 2b3178b</code></td></tr></table>
+</main></body></html>

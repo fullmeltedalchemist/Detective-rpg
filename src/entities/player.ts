@@ -1,5 +1,5 @@
 import * as pc from 'playcanvas';
-import { Character, lerpAngle } from './character';
+import { lerpAngle, type Humanoid } from './humanoid';
 import type { CollisionWorld } from '../world/collision';
 
 const tmpF = new pc.Vec3();
@@ -14,8 +14,14 @@ export class Player {
   walkSpeed = 2.3;
   runSpeed = 5.2;
   inVehicle = false;
+  /** When set (aiming), the body faces this yaw instead of the movement direction. */
+  lockYaw: number | null = null;
+  /** Movement speed multiplier (e.g. slower while aiming). */
+  speedScale = 1;
+  canSprint = true;
+  frozen = false;
 
-  constructor(readonly character: Character, private world: CollisionWorld) {}
+  constructor(readonly character: Humanoid, private world: CollisionWorld) {}
 
   place(x: number, z: number, yaw = 0) {
     this.x = x; this.z = z; this.vx = 0; this.vz = 0;
@@ -31,7 +37,8 @@ export class Player {
     const mag = Math.min(1, Math.hypot(moveX, moveY));
     const len = Math.hypot(dx, dz);
     if (len > 1e-4) { dx /= len; dz /= len; }
-    const speed = mag < 0.01 ? 0 : sprint ? this.runSpeed : this.walkSpeed * Math.max(0.35, mag);
+    let speed = mag < 0.01 || this.frozen ? 0 : sprint && this.canSprint ? this.runSpeed : this.walkSpeed * Math.max(0.35, mag);
+    speed *= this.speedScale;
     const tx = dx * speed, tz = dz * speed;
     const accel = speed > Math.hypot(this.vx, this.vz) ? 14 : 18;
     const k = 1 - Math.exp(-accel * dt);
@@ -52,7 +59,9 @@ export class Player {
     this.y += (targetY - this.y) * Math.min(1, dt * 18);
 
     const sp = Math.hypot(this.vx, this.vz);
-    if (sp > 0.2) {
+    if (this.lockYaw !== null) {
+      this.character.yaw = lerpAngle(this.character.yaw, this.lockYaw, Math.min(1, dt * 20));
+    } else if (sp > 0.2) {
       const want = Math.atan2(this.vx, this.vz) * pc.math.RAD_TO_DEG;
       this.character.yaw = lerpAngle(this.character.yaw, want, Math.min(1, dt * 12));
     }

@@ -7,7 +7,7 @@ Exits non-zero on the first failed check. Screenshots go to tests/out/.
 import sys, time, os, json
 from playwright.sync_api import sync_playwright
 
-URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/?quality=low'
+URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:4173/?quality=low&norender=1'
 OUT = 'tests/out'
 os.makedirs(OUT, exist_ok=True)
 results = []
@@ -54,15 +54,14 @@ def prompt(page):
 
 def hold_key(page, key, game_secs, until=None, timeout=90):
     """Hold a key for a given amount of *game* time (software GL renders slowly)."""
-    page.evaluate('() => { window.__gt = 0; window.__game.app.on("update", window.__gtf = (dt) => { window.__gt += Math.min(dt, 1/15); }); }')
+    page.evaluate('() => { window.__gt0 = window.__game.time; }')
     page.keyboard.down(key)
     t0 = time.time()
     while time.time() - t0 < timeout:
-        if page.evaluate('() => window.__gt') >= game_secs: break
+        if page.evaluate('() => window.__game.time - window.__gt0') >= game_secs: break
         if until and page.evaluate(f'() => {{ const g = window.__game; return {until}; }}'): break
         time.sleep(0.2)
     page.keyboard.up(key)
-    page.evaluate('() => window.__game.app.off("update", window.__gtf)')
     wait_frames(page, 2)
 
 
