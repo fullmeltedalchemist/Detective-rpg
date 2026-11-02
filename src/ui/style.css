@@ -123,8 +123,8 @@ canvas#app { position: fixed; inset: 0; width: 100%; height: 100%; display: bloc
 
 /* ---------- Diagnostics ---------- */
 .diag {
-  position: fixed; left: calc(12px + var(--safe-l)); bottom: calc(8px + var(--safe-b)); font: 11px ui-monospace, Menlo, monospace;
-  background: rgba(0,0,0,0.55); padding: 6px 8px; border-radius: 6px; color: #cfe; line-height: 1.45; white-space: pre; display: none;
+  position: fixed; left: calc(12px + var(--safe-l)); top: calc(92px + var(--safe-t)); font: 11.5px ui-monospace, Menlo, monospace;
+  background: rgba(0,0,0,0.6); padding: 6px 8px; border-radius: 6px; color: #cfe; line-height: 1.45; white-space: pre; display: none;
 }
 .diag.show { display: block; }
 .diag.bad { color: #fbb; }

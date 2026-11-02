@@ -69,6 +69,9 @@ export class Game {
   private lookSens = 1;
   private shake = 0;
   private recklessCooldown = 0;
+  private frameTimes: number[] = [];
+  private sessionFrames = 0;
+  private sessionTime = 0;
   /** Exposed for automated smoke tests. */
   debug: Record<string, unknown> = {};
 
@@ -81,6 +84,9 @@ export class Game {
     const ui = document.getElementById('ui')!;
     this.input = new Input(this.canvas, ui);
     this.hud = new Hud(this.input);
+    // Performance overlay on by default for the dev preview, or with ?perf=1
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('perf') === '1' || (location.hostname.includes('-dev') && qs.get('perf') !== '0')) this.hud.diagOn = true;
     if (isTouchDevice()) { this.input.touchMode = true; document.body.classList.add('touch'); }
     this.hud.setLoading(0.02, 'Starting renderer…');
 
@@ -645,15 +651,29 @@ export class Game {
         if (r !== this.dynRatio) { this.dynRatio = r; this.app.graphicsDevice.maxPixelRatio = r; this.app.resizeCanvas(); }
       }
     }
+    // rolling 5 s window for average + worst-1% frames, plus whole-session average
+    if (this.started) {
+      this.frameTimes.push(dt);
+      let sum = 0; for (const f of this.frameTimes) sum += f;
+      while (sum > 5 && this.frameTimes.length > 1) sum -= this.frameTimes.shift()!;
+      this.sessionFrames++; this.sessionTime += dt;
+    }
+    const sorted = [...this.frameTimes].sort((a, b) => b - a);
+    const worst = sorted.slice(0, Math.max(1, Math.floor(sorted.length * 0.01)));
+    const low1 = worst.length ? 1 / (worst.reduce((a, b) => a + b, 0) / worst.length) : 0;
+    const avg5 = this.frameTimes.length ? this.frameTimes.length / this.frameTimes.reduce((a, b) => a + b, 0) : 0;
+    const sessAvg = this.sessionTime > 0 ? this.sessionFrames / this.sessionTime : 0;
     const stats = (this.app as any).stats;
     const dc = stats?.drawCalls?.total ?? 0;
     const shadowMs = stats?.frame?.shadowMapTime ?? 0;
     const dev = this.app.graphicsDevice;
     this.hud.setDiag(
-      `FPS ${this.fpsAvg.toFixed(0)}  (${this.frameMsAvg.toFixed(1)} ms)\n` +
+      `FPS now ${this.fpsAvg.toFixed(0)}  (${this.frameMsAvg.toFixed(1)} ms)\n` +
+      `5s avg ${avg5.toFixed(0)}  1% low ${low1.toFixed(0)}  session ${sessAvg.toFixed(0)}\n` +
       `draws ${dc}  shadow ${shadowMs.toFixed(1)} ms\n` +
       `res ${dev.width}×${dev.height} @${this.dynRatio.toFixed(2)}x\n` +
-      `quality ${this.q.level}${this.q.dynamicResolution ? ' +dyn' : ''}  ${this.driving ? `${this.car.kmh.toFixed(0)} km/h` : ''}`,
+      `quality ${this.q.level}${this.q.dynamicResolution ? ' +dyn' : ''}  ${this.driving ? `${this.car.kmh.toFixed(0)} km/h` : ''}\n` +
+      `${BUILD_ID}`,
       this.fpsAvg < 27,
     );
     this.debug.fps = this.fpsAvg;
