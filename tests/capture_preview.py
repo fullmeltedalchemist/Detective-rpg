@@ -28,14 +28,14 @@ VIEWS = [
     ('interior_cafe', 'Interior: Café Luna', f'{P} g.player.place(18, -12.5, 0); g.cam.yaw = 0; g.cam.pitch = -10; g.cam.distance = g.cam.targetDistance = 3.5; g.cam.snapTo(g.player.pos);', 40, True),
     ('interior_bank', 'Interior: First Civic Bank', f'{P} g.player.place(39, -12, 0); g.cam.yaw = 0; g.cam.pitch = -8; g.cam.distance = g.cam.targetDistance = 4; g.cam.snapTo(g.player.pos);', 40, True),
     ('interior_station', 'Interior: Precinct 9 lobby', f'{P} g.player.place(24, 11, 180); g.cam.yaw = 180; g.cam.pitch = -10; g.cam.distance = g.cam.targetDistance = 4; g.cam.snapTo(g.player.pos);', 40, True),
-    ('characters', 'Characters: detective, sergeant, café owner, teller, suspects',
-     f'''{P} g.player.place(15.6, 1.2, 180); const ids = ['okafor','rosa','nina','dale','victor','thug2'];
-       ids.forEach((id, i) => {{ const n = g.npc(id); n.def.stationary = true; n.def.home = [16.6 + i * 0.95, 1.2, 180]; n.teleport(16.6 + i * 0.95, 1.2, 180); n.setState('idle'); }});
-       g.cam.yaw = 0; g.cam.pitch = -3; g.cam.distance = g.cam.targetDistance = 5.2; g.cam.height = 1.1; g.cam.snapTo(new g.player.pos.constructor(18.6, 0.15, 1.2));''', 60, False),
+    ('characters', 'Characters: detective, sergeant, café owner, teller, suspect, witnesses',
+     f'''{P} g.player.place(15.0, 1.2, 0); const ids = ['okafor','rosa','nina','dale','victor','civ4'];
+       ids.forEach((id, i) => {{ const n = g.npc(id); n.def.stationary = true; n.def.home = [16.0 + i * 0.95, 1.2, 0]; n.teleport(16.0 + i * 0.95, 1.2, 0); n.setState('idle'); }});
+       g.cam.setFraming(6.2, 1.0); g.cam.yaw = 0; g.cam.pitch = -2; g.debugFocus = new g.player.pos.constructor(17.4, 0.15, 1.2); g.cam.snapTo(g.debugFocus);''', 60, False),
     ('character_closeup', 'Close-up: the detective (Rocketbox avatar, UAL animation)',
-     f'{P} g.player.place(16, 1, 180); g.cam.yaw = 0; g.cam.pitch = -2; g.cam.distance = g.cam.targetDistance = 2.0; g.cam.height = 1.45; g.cam.snapTo(g.player.pos);', 50, False),
+     f'{P} g.debugFocus = null; g.player.place(15.0, 1.2, 20); g.cam.setFraming(1.9, 1.45); g.cam.yaw = 0; g.cam.pitch = -3; g.cam.snapTo(g.player.pos);', 50, False),
     ('combat_aim', 'Combat: aiming down sights with the service pistol',
-     f"{P} g.cam.height = 1.55; g.player.place(14, 2, 0); g.cam.yaw = 200; g.cam.pitch = -4; g.combat.player.equip('pistol'); g.input.aimHeld = true; g.cam.snapTo(g.player.pos);", 50, False),
+     f"{P} g.cam.setFraming(4.2, 1.55); g.player.place(14, 2, 0); g.cam.yaw = 200; g.cam.pitch = -4; g.combat.player.equip('pistol'); g.input.aimHeld = true; g.cam.snapTo(g.player.pos);", 50, False),
     ('combat_lot', 'Combat: armed suspects in the back lot (Oak Ave)',
      f"{P} g.input.aimHeld = false; g.combat.player.equip('pistol'); g.player.place(-11, 27.5, -90); g.cam.yaw = 90; g.cam.pitch = -6; g.cam.distance = g.cam.targetDistance = 3; g.cam.snapTo(g.player.pos);", 50, False),
     ('driving', 'Driving the police cruiser with siren',
@@ -91,23 +91,23 @@ with sync_playwright() as p:
         page.evaluate(f'''() => {{ {P} if (g.driving) g.input.press('vehicle'); }}''')
         wait_game(0.3)
         page.evaluate(f'''() => {{ {P} g.player.place(16, -12, 0); g.player.character.visible = false;
-          const n = g.npc('civ6'); n.def.stationary = true; n.hp = 10000; n.def.home = [14, 2.5, 180]; n.teleport(14, 2.5, 180); n.setState('idle');
-          g.debugFocus = new n.pos.constructor(14, 0.15, 2.5); g.cam.yaw = 330; g.cam.pitch = -6; g.cam.distance = g.cam.targetDistance = 4.2; g.cam.height = 1.2; g.cam.snapTo(g.debugFocus); }}''')
+          const n = g.npc('civ6'); n.def.stationary = true; n.hp = 10000; n.def.home = [14, 2.5, 190]; n.teleport(14, 2.5, 190); n.setState('idle');
+          g.debugFocus = new n.pos.constructor(14, 0.15, 2.5); g.cam.setFraming(4.0, 1.0); g.cam.yaw = 205; g.cam.pitch = -8; g.cam.snapTo(g.debugFocus); }}''')
         wait_game(1.0)
-        fire('civ6', 30); wait_game(0.12); shot('hit_flinch', 'Hit reaction: flinch away from the shot (spring, never restarts)')
+        fire('civ6', 30); wait_game(0.12); shot('hit_flinch', 'First shot: flinches and drops into cover (a bystander ducks once)')
         fire('civ6', 30); wait_game(0.25); fire('civ6', 30); wait_game(0.25)
-        shot('hit_repeated', 'Repeated hits: ducks once and stays down (no squat cycling)')
+        shot('hit_repeated', 'Repeated hits while ducking: flinches only, no squat cycling or restarts')
         page.evaluate(f'''() => {{ {P} const n = g.npc('civ6'); n.hp = 40; }}''')
-        fire('civ6', 30); wait_game(0.05); fire('civ6', 30); wait_game(0.35); shot('death_fall_1', 'Fatal hit: one fall, cross-faded from the current pose')
+        fire('civ6', 30); wait_game(0.05); fire('civ6', 30); wait_game(0.35); shot('death_fall_1', 'Fatal hit: one fall, blended from the current pose')
         wait_game(0.5); shot('death_fall_2', 'Falling backwards, away from the shooter')
         wait_game(2.0); shot('death_fall_3', 'At rest: body held still on the ground')
-        page.evaluate(f'''() => {{ {P} const n = g.npc('civ2'); n.def.stationary = true; n.def.home = [17.5, 2.5, 180]; n.teleport(17.5, 2.5, 180); n.setState('idle');
-          g.debugFocus = new n.pos.constructor(17.5, 0.15, 2.5); g.cam.snapTo(g.debugFocus); }}''')
+        page.evaluate(f'''() => {{ {P} const n = g.npc('civ2'); n.def.stationary = true; n.def.home = [10.5, 2.5, 190]; n.teleport(10.5, 2.5, 190); n.setState('idle');
+          g.debugFocus = new n.pos.constructor(10.5, 0.15, 2.5); g.cam.snapTo(g.debugFocus); }}''')
         wait_game(0.6)
-        page.evaluate(f'''() => {{ {P} const n = g.npc('civ2'); n.knockOut(6, new n.pos.constructor(17.5, 0, -5)); }}''')
+        page.evaluate(f'''() => {{ {P} const n = g.npc('civ2'); n.knockOut(6, new n.pos.constructor(10.5, 0, -5)); }}''')
         wait_game(2.8); shot('knockout', 'Knocked out: stays down until recovery begins')
         wait_game(5.5); shot('knockout_recover', 'Recovered: gets up once, after the knock-out ends')
-        page.evaluate(f'() => {{ {P} g.debugFocus = null; g.player.character.visible = true; }}')
+        page.evaluate(f'() => {{ {P} g.debugFocus = null; g.player.character.visible = true; g.cam.setFraming(4.2, 1.55); }}')
     summary['health'] = page.evaluate("() => fetch('health.json').then(r => r.ok ? r.json() : null).catch(() => null)")
     json.dump(summary, open(f'{OUT}/capture.json', 'w'), indent=1)
     b.close()

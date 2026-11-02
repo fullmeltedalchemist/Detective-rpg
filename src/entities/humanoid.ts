@@ -146,7 +146,10 @@ export class Humanoid {
   /** Diagnostics for tests: how many times each clip was started. */
   readonly clipStarts: Record<string, number> = {};
   private holding = false;
-  private holdTime = 0;
+  /** Lying still: the skeleton pose captured when the fall finished, re-applied every frame
+   * with the AnimComponent switched off (no re-evaluation, no flicker, no animation cost). */
+  private frozen: { n: pc.GraphNode; p: pc.Vec3; r: pc.Quat }[] | null = null;
+  private wantFreeze = false;
   private gait = 0;
   /** Optional retarget target (set by the avatar system). */
   retarget: ((driver: Humanoid) => void) | null = null;
@@ -440,6 +443,14 @@ export class Humanoid {
 
     if (this.oneShot && this.oneShot.dur !== Infinity) {
       this.oneShot.t += dt;
+      const o = this.oneShot;
+      if (o.layer === 'base' && o.name === 'death' && this.life !== 'alive') {
+        // Freeze shortly BEFORE the fall clip ends: the frame on which a non-looping state
+        // finishes evaluates the bind (standing) pose. Use the animation's own clock (it runs
+        // on real frame time, not our capped dt) with a margin larger than one frame step.
+        const animT = this.base && this.base.activeState === CLIPS.death ? this.base.activeStateCurrentTime : 0;
+        if (Math.max(o.t, animT) >= o.dur - 0.15) o.t = o.dur;
+      }
       if (this.oneShot.t >= this.oneShot.dur) {
         const done = this.oneShot;
         this.oneShot = null;
@@ -448,14 +459,12 @@ export class Humanoid {
           // lie still on the last frame until recovery explicitly starts
           this.oneShot = { ...done, t: done.dur, dur: Infinity };
           this.holding = true;
-          this.holdTime = Math.max(0, (this.lib.tracks.get(CLIPS.death)?.duration ?? 1) - 0.04);
+          this.wantFreeze = true;
         } else if (done.layer === 'base') this.baseState = '';
         else this.upperState = '';
       }
     }
 
-    // lying still: pin the fall clip to its final frame (pausing the component resets the pose)
-    if (this.holding && this.base) { this.anim.speed = 1; this.base.activeStateCurrentTime = this.holdTime; }
     const baseLocked = this.oneShot?.layer === 'base';
     if (!baseLocked && this.life === 'alive') {
       const sp = this.speed;
@@ -501,6 +510,8 @@ export class Humanoid {
   /** Called after the animation system has evaluated (from the game's update handler). */
   postAnimate() {
     if (!this.anim) return;
+    if (this.wantFreeze) this.freeze();
+    else if (this.frozen) for (const f of this.frozen) { f.n.setLocalPosition(f.p); f.n.setLocalRotation(f.r); }
     this.applyFlinch();
     if (this.life === 'alive') {
       this.applyAimPitch();
@@ -614,6 +625,7 @@ export class Humanoid {
     this.entity.setLocalEulerAngles(0, this.yaw, 0);
     this.oneShot = null;
     this.holding = false;
+    this.unfreeze();
     this.play('death', 0.1);
   }
 
@@ -628,7 +640,23 @@ export class Humanoid {
     this.entity.setLocalEulerAngles(0, this.yaw, 0);
     this.oneShot = null;
     this.holding = false;
+    this.unfreeze();
     this.play('death', 0.1);
+  }
+
+  private freeze() {
+    this.wantFreeze = false;
+    const out: { n: pc.GraphNode; p: pc.Vec3; r: pc.Quat }[] = [];
+    this.model.forEach((n: pc.GraphNode) => { if (n !== this.model) out.push({ n, p: n.getLocalPosition().clone(), r: n.getLocalRotation().clone() }); });
+    this.frozen = out;
+    if (this.anim) this.anim.enabled = false;
+  }
+
+  private unfreeze() {
+    this.wantFreeze = false;
+    if (!this.frozen) return;
+    this.frozen = null;
+    if (this.anim) this.anim.enabled = true;
   }
 
   /** Reset after the player respawns. */
@@ -636,6 +664,7 @@ export class Humanoid {
     this.life = 'alive';
     this.oneShot = null;
     this.holding = false;
+    this.unfreeze();
     this.baseState = '';
     this.upperState = '';
     this.injury.torso = this.injury.leg = this.injury.arm = this.injury.head = 0;
@@ -646,6 +675,7 @@ export class Humanoid {
   getUp(): number {
     if (this.life !== 'down') return 0;
     this.holding = false;
+    this.unfreeze();
     const d = this.play('getUp', 0.25);
     this.life = 'alive';
     return d;

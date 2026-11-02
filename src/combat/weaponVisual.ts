@@ -62,8 +62,9 @@ export class WeaponVisual {
     const def = WEAPONS[this.id];
     if (def.holster === 'thigh') {
       const p = h.bonePos('thigh_r', this.tmp);
-      this.holder.setPosition(p.x + rx * 0.13 - fx * 0.02, p.y - 0.08, p.z + rz * 0.13 - fz * 0.02);
-      this.tmp2.set(p.x + rx * 0.13 + fx * 0.3, p.y - 0.9, p.z + rz * 0.13 + fz * 0.3);
+      // belt holster: at the belt line, just behind the right hip, muzzle down
+      this.holder.setPosition(p.x + rx * 0.12 - fx * 0.07, p.y + 0.04, p.z + rz * 0.12 - fz * 0.07);
+      this.tmp2.set(p.x + rx * 0.12 + fx * 0.2, p.y - 0.9, p.z + rz * 0.12 + fz * 0.2);
       this.holder.lookAt(this.tmp2);
     } else {
       const p = h.bonePos('spine_03', this.tmp);

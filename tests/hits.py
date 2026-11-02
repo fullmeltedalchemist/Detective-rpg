@@ -56,6 +56,17 @@ def setup(page, npc, x, z, yaw=0, stationary=True, hp=100):
       n.character.crouch = false; n.character.pose = "normal"; }}''')
 
 
+def pelvis_range(page, npc, secs):
+    """Max/min pelvis height of an NPC sampled on EVERY frame for `secs` of game time."""
+    page.evaluate(f'''() => {{ const g = window.__game, c = g.npc("{npc}").character; window.__pel = [9, -9, 0];
+      window.__pelFn = () => {{ const y = c.bonePos("pelvis").y; window.__pel[0] = Math.min(window.__pel[0], y); window.__pel[1] = Math.max(window.__pel[1], y); window.__pel[2]++; }};
+      g.app.on("update", window.__pelFn); }}''')
+    game_time(page, secs)
+    r = page.evaluate('() => { window.__game.app.off("update", window.__pelFn); return window.__pel; }')
+    check(f'pelvis sampled on every frame ({npc})', r[2] >= 10, f'{r[2]} frames')
+    return r[0], r[1]
+
+
 def snap(page, name):
     if FRAMES:
         page.evaluate('() => window.__renderOnce && window.__renderOnce()')
@@ -132,10 +143,8 @@ with sync_playwright() as p:
     check('NPC died', g(page, 'g.npc("civ3").state') == 'dead')
     check('fatal hits: exactly one fall animation', falls_started == 1, d)
     check('fatal hits: nothing restarts after death (no idle/crouch/get-up)', not after_death, after_death)
-    pel1 = g(page, 'g.npc("civ3").character.bonePos("pelvis").y')
-    game_time(page, 1.5)
-    pel2 = g(page, 'g.npc("civ3").character.bonePos("pelvis").y')
-    check('body lies still on the ground after the fall', abs(pel1 - pel2) < 0.03 and pel2 < 0.55, f'pelvis height {pel1:.2f} -> {pel2:.2f}')
+    lo, hi = pelvis_range(page, 'civ3', 2.0)
+    check('body lies still on the ground after the fall (every frame for 2 s)', hi < 0.4 and hi - lo < 0.03, f'pelvis height {lo:.2f}..{hi:.2f}')
     s1 = starts(page, 'civ3')
     page.evaluate('() => { const n = window.__game.npc("civ3"); n.damage(50, "bullet", "player", "torso", null); }')
     game_time(page, 0.5)
@@ -150,6 +159,8 @@ with sync_playwright() as p:
     page.evaluate(f'() => {{ const g = window.__game, n = g.npc("civ2"); n.knockOut(5.5, new n.pos.constructor(18, 0, -6)); }}')
     game_time(page, 3.0); snap(page, 'knockdown_1')
     check('knocked-out NPC is lying still', g(page, 'g.npc("civ2").character.lyingStill'))
+    lo, hi = pelvis_range(page, 'civ2', 1.0)
+    check('knocked-out body never pops up (every frame for 1 s)', hi < 0.4 and hi - lo < 0.03, f'pelvis height {lo:.2f}..{hi:.2f}')
     # extra hits while down must not restart anything
     for _ in range(3):
         page.evaluate('() => { const n = window.__game.npc("civ2"); n.damage(5, "melee", "player", "torso", null); }')
@@ -163,6 +174,20 @@ with sync_playwright() as p:
     print('   knockdown cycle clip starts:', d)
     check('knockdown: exactly one fall and one get-up', d.get('Death01', 0) + d.get('Hit_Knockback', 0) == 1 and d.get('LayToIdle', 0) == 1, d)
     check('back on their feet', g(page, 'g.npc("civ2").state') in ('idle', 'flee', 'wander', 'watch'), g(page, 'g.npc("civ2").state'))
+
+    # ---------- 4b. knocked down, then killed while falling: one fall, stays down for good ----------
+    setup(page, 'civ3', 14, 2.5, 0, stationary=True, hp=100)
+    game_time(page, 0.3)
+    s0 = starts(page, 'civ3')
+    page.evaluate('() => { const g = window.__game, n = g.npc("civ3"); n.knockOut(20, new n.pos.constructor(14, 0, -6)); }')
+    game_time(page, 0.4)
+    page.evaluate('() => { const n = window.__game.npc("civ3"); n.damage(500, "bullet", "player", "torso", null); }')
+    game_time(page, 2.5)
+    lo, hi = pelvis_range(page, 'civ3', 2.5)
+    d = diff(s0, starts(page, 'civ3'))
+    check('killed mid-fall: dead, exactly one fall', g(page, 'g.npc("civ3").state') == 'dead' and d.get('Death01', 0) == 1 and d.get('LayToIdle', 0) == 0, d)
+    check('killed mid-fall: body never pops up (every frame for 2.5 s)', hi < 0.4 and hi - lo < 0.03, f'pelvis height {lo:.2f}..{hi:.2f}')
+    page.evaluate('() => { const n = window.__game.npc("civ3"); n.character.revive(); n.hp = 100; n.setState("idle"); }')
 
     # ---------- 5. staff behind the counter under sustained gunfire: duck once ----------
     page.evaluate('() => { const g = window.__game; g.player.place(16, -12, 180); }')
