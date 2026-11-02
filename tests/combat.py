@@ -173,9 +173,12 @@ with sync_playwright() as p:
     nx, nz = g(page, f'[g.npc("{sid}").x, g.npc("{sid}").z]')
     place(page, nx + 1.0, nz, -90)
     frames(page, 3)
-    lab = g(page, 'document.querySelector(".btn.primary span").textContent')
-    check('handcuff prompt on surrendered/downed suspect', 'Handcuff' in lab, lab)
-    page.evaluate('() => window.__game.input.press("interact")'); frames(page, 3)
+    lab = g(page, '[...document.querySelectorAll(".arrest .btn:not(.hidden) span")].map(e => e.textContent).join(",")')
+    check('Cuff button on a surrendered/downed suspect', 'Cuff' in lab, lab)
+    page.evaluate('() => window.__game.input.press("cuff")')
+    for _ in range(60):
+        frames(page, 5)
+        if g(page, '!!g.prisoner && !g.arrests.busy'): break
     check('suspect cuffed', g(page, 'g.prisoner && g.prisoner.id') == sid)
     A = g(page, '[g.refs.anchors.booking.x, g.refs.anchors.booking.z]')
     place(page, A[0], A[1])

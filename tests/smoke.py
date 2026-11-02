@@ -170,6 +170,7 @@ with sync_playwright() as p:
     choose(page, 'Arrest Dale')
     wait_frames(page, 2)
     examine_go(page)  # confirm "Handcuff"
+    hold_key(page, 'Shift', 3, until='g.prisoner && !g.arrests.busy')  # the cuffing action plays (~1.2 s)
     check('Dale cuffed', g(page, 'g.prisoner && g.prisoner.id') == 'dale')
     check('Dale in cuffed state', g(page, 'g.npc("dale").state') == 'cuffed')
 
@@ -235,6 +236,8 @@ with sync_playwright() as p:
     choose(page, 'Arrest Victor')
     wait_frames(page, 2)
     examine_go(page)
+    hold_key(page, 'Shift', 3, until='g.prisoner && !g.arrests.busy')  # the cuffing action plays
+    check('Victor cuffed', g(page, 'g.prisoner && g.prisoner.id') == 'victor')
     place(page, A['booking'][0], A['booking'][2])
     page.evaluate(f'() => window.__game.npc("victor").teleport({A["booking"][0] + 1.2}, {A["booking"][2] - 0.5})')
     wait_frames(page, 2)

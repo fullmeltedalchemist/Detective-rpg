@@ -82,6 +82,22 @@ def interact(page):
     game_time(page, 0.1)
 
 
+def act(page, action, secs=2.4):
+    """Press the Cuff/Search button and wait for the timed action to finish."""
+    page.evaluate(f'() => window.__game.input.press("{action}")')
+    game_time(page, 0.15)
+    game_time(page, secs, until='!g.arrests.busy')
+    game_time(page, 0.1)
+
+
+def buttons(page):
+    return g(page, '[...document.querySelectorAll(".arrest .btn:not(.hidden) span")].map(e => e.textContent)')
+
+
+def found(page):
+    return g(page, 'document.querySelector(".found.show") ? document.querySelector(".found").innerText : ""')
+
+
 def place(page, x, z, yaw=0, cam=None):
     page.evaluate(f'() => {{ const g = window.__game; g.player.place({x}, {z}, {yaw}); {f"g.cam.yaw = {cam};" if cam is not None else ""} g.cam.snapTo(g.player.pos); }}')
     game_time(page, 0.15)
@@ -178,10 +194,11 @@ with sync_playwright() as p:
     close_dialogue(page)
     check('dealer stops and raises his hands', g(page, 'g.npc("dealer").state') == 'surrender')
     game_time(page, 0.3)
-    check('search prompt offered', 'Search Cody' in prompt(page), prompt(page))
-    interact(page)
-    examine_go(page)
+    check('Cuff and Search buttons both offered for a stopped suspect', 'Search' in ' '.join(buttons(page)) and 'Cuff' in ' '.join(buttons(page)), buttons(page))
+    act(page, 'search')
+    check('pat-down is a timed action with an animation (detective played a hand clip)', g(page, '(g.player.character.clipStarts["Interact"] || 0) >= 1'))
     check('pat-down: pills, cash and burner phone seized', g(page, 's.has("baggies") && s.has("dealerCash") && s.has("burner")'))
+    check('finds shown on a card, no modal window', 'baggies' in found(page) and not g(page, 'g.hud.modalOpen'), found(page))
     check('search was lawful (probable cause)', g(page, 's.flag("drugSearchLawful") && !s.flag("drugSearchUnlawful")'))
 
     # the bribe — refused
@@ -190,6 +207,8 @@ with sync_playwright() as p:
     choose(page, 'Put it away')
     close_dialogue(page)
     check('bribe refused and recorded', g(page, 's.flag("bribeRefused")') and 'refused_bribe' in incidents(page), incidents(page))
+    game_time(page, 3, until='g.prisoner && !g.arrests.busy')
+    check('cuffing action plays after the dialogue (handcuff click, progress)', g(page, 'g.prisoner && g.prisoner.id') == 'dealer')
     check('dealer in handcuffs', g(page, 'g.prisoner && g.prisoner.id') == 'dealer' and g(page, 'g.npc("dealer").state') == 'cuffed')
 
     # the van
@@ -244,13 +263,12 @@ with sync_playwright() as p:
     check('tackled to the ground', g(page, 'g.npc("dealer").state') == 'down')
     check('tackling a fleeing suspect is not excessive force', 'excessive_force' not in incidents(page), incidents(page))
     game_time(page, 2.5)
-    check('search prompt while he is down', 'Search Cody' in prompt(page), prompt(page))
-    interact(page)
-    examine_go(page)
+    check('Cuff button shows straight away for a tackled suspect', any(b.startswith('Cuff') for b in buttons(page)), buttons(page))
+    act(page, 'search')
     check('search WITHOUT probable cause is flagged', g(page, 's.flag("drugSearchUnlawful")') and 'illegal_search' in incidents(page), incidents(page))
-    check('handcuff prompt', prompt(page) == 'Handcuff', prompt(page))
-    interact(page)
-    check('dealer cuffed', g(page, 'g.prisoner && g.prisoner.id') == 'dealer')
+    check('card warns about the missing probable cause', 'probable cause' in found(page).lower(), found(page))
+    act(page, 'cuff')
+    check('dealer cuffed (on the ground, with the cuffing action)', g(page, 'g.prisoner && g.prisoner.id') == 'dealer')
     game_time(page, 1.5)
     run(page, 'const A = g.refs.anchors; g.player.place(A.booking.x, A.booking.z - 0.6, 0); g.npc("dealer").teleport(A.booking.x + 1.0, A.booking.z - 1.2);')
     game_time(page, 0.3)
@@ -272,8 +290,7 @@ with sync_playwright() as p:
     choose(page, 'Police. Hands where I can see them')
     close_dialogue(page)
     game_time(page, 0.3)
-    interact(page)
-    examine_go(page)
+    act(page, 'search')
     m0 = g(page, 'g.combat.standing.summary()')
     talk(page, 'dealer')
     choose(page, 'Take the money')
@@ -293,10 +310,11 @@ with sync_playwright() as p:
     talk(page, 'dealer')
     choose(page, "It's over")
     close_dialogue(page)
+    game_time(page, 3, until='g.prisoner && !g.arrests.busy')
     check('turned on him: dealer cuffed', g(page, 'g.prisoner && g.prisoner.id') == 'dealer')
-    check('fresh search possible after the bribe', 'Search Cody' in prompt(page), prompt(page))
-    interact(page)
-    examine_go(page)
+    game_time(page, 2.0, until='!g.arrests.busy && g.prisoner')
+    check('fresh search possible after the bribe', any(b.startswith('Search') for b in buttons(page)), buttons(page))
+    act(page, 'search')
     run(page, 'const A = g.refs.anchors; g.player.place(A.booking.x, A.booking.z - 0.6, 0); g.npc("dealer").teleport(A.booking.x + 1.0, A.booking.z - 1.2);')
     game_time(page, 0.3)
     interact(page)

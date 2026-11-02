@@ -62,6 +62,9 @@ Case 9-201 "Corner Business" — given by Ofc. Delgado outside Precinct 9 (avail
 - ✅ Booking with real charges from the evidence (possession with intent, sale via controlled buy or observation, trafficking quantity), suppression and dismissal, lookout as accessory, buyer for possession
 - ✅ Notebook: per-case sections (no spoilers for unfound Case 9-201 evidence), cash on hand and buy money; residents and Okafor react to how the case went
 - ✅ Automated: tests/street.py — honest bust, foot chase + tackle + illegal search, bribe + later exposure, lookout
+- ✅ Arrest controls on their own buttons, like the weapons: **Cuff** (G) and **Search** (V) appear next to anyone you can arrest or pat down. Cuffing is a short action (the suspect turns around, hands up, the cuffs click; on the ground if they're down); a pat-down is a timed search whose finds appear on a card while you keep playing — no confirmation boxes
+- ✅ Hands-up, kneeling surrender, cuffed and wound-clutch poses rebuilt for the current characters
+- ✅ The parked van's tyres (they were rendering inside the body)
 - 🟡 The van is the low-poly Kenney model; the supplier "M" is only a lead (future case)
 - 🟡 Money has no use yet (shops and station upgrades are Phase D); progress is not saved between sessions (save system planned with Phase C)
 

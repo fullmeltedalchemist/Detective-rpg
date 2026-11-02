@@ -17,6 +17,7 @@ import { CombatDirector } from '../gameplay/combatDirector';
 import { ENCOUNTER_NPCS } from '../gameplay/encounter';
 import { StreetCrime, STREET_NPCS } from '../gameplay/streetCrime';
 import { evaluateDrugBooking, drugObjective } from '../gameplay/drugCase';
+import { ArrestActions } from '../gameplay/arrests';
 import { WEAPONS } from '../combat/weapons';
 
 const MODELS = [
@@ -84,6 +85,7 @@ export class Game {
   state = new GameState();
   combat!: CombatDirector;
   street!: StreetCrime;
+  arrests!: ArrestActions;
   /** Game-time clock (seconds, capped per frame) — tests wait on this. */
   time = 0;
   /** Test/screenshot hook: camera follows this point instead of the player when set. */
@@ -333,6 +335,7 @@ export class Game {
     this.combat.init(root);
     this.street = new StreetCrime(this);
     this.street.init();
+    this.arrests = new ArrestActions(this);
     this.hud.standingHtml = () => {
       const st = this.combat.standing.summary();
       const inc = this.combat.standing.incidents.slice(-6).reverse().map((i) => `<div class="task">${i.label}${i.witnessed ? ' · witnessed' : ''}${i.subject ? ` — ${i.subject}` : ''}</div>`).join('');
@@ -362,7 +365,14 @@ export class Game {
 
   /** Public hooks for gameplay modules (street crime etc.). */
   collectEvidence(id: EvidenceId) { this.collect(id); }
-  arrest(n: Npc) { if (!this.prisoner) this.cuff(n); else this.hud.toast('You already have someone in custody — book them first.'); }
+  /** Arrest someone: the animated cuffing when they're in reach, otherwise straight away. */
+  arrest(n: Npc) {
+    if (this.prisoner) { this.hud.toast('You already have someone in custody — book them first.'); return; }
+    if (Math.hypot(n.x - this.player.x, n.z - this.player.z) < 2.6) this.arrests.begin('cuff', n);
+    else this.cuff(n);
+  }
+  /** Put the cuffs on now (end of the cuffing action). */
+  cuffNow(n: Npc) { if (!this.prisoner) this.cuff(n); }
   talkTo(n: Npc) { this.talk(n); }
 
   // ------------------------------------------------------------------
@@ -440,14 +450,10 @@ export class Game {
         label: () => {
           if (this.prisoner || n.state === 'cuffed' || n.state === 'jailed' || n.state === 'inCar') return null;
           if (!n.alive) return null;
-          if ((n.state === 'surrender' || n.state === 'down') && (n.hostile || n.state === 'down' || n.def.kind === 'suspect')) return 'Handcuff';
           if (this.combat.canTakedown(n)) return n.def.kind === 'suspect' ? 'Tackle' : 'Takedown';
           return null;
         },
-        act: () => {
-          if (n.state === 'surrender' || n.state === 'down') this.cuff(n);
-          else this.combat.takedown(n);
-        },
+        act: () => this.combat.takedown(n),
       });
     }
     I.push({
@@ -496,7 +502,7 @@ export class Game {
   private confirmArrest(id: string) {
     const n = this.npc(id);
     setTimeout(() => {
-      this.hud.showConfirm(`Arrest ${n.name}?`, 'You\'ll need to book them at Precinct 9. Sgt. Okafor will review your evidence — a wrongful arrest hurts your reputation and the people of Harbor Street will remember it.', 'Handcuff', () => this.cuff(n));
+      this.hud.showConfirm(`Arrest ${n.name}?`, 'You\'ll need to book them at Precinct 9. Sgt. Okafor will review your evidence — a wrongful arrest hurts your reputation and the people of Harbor Street will remember it.', 'Handcuff', () => this.arrest(n));
     }, 30);
   }
 
@@ -697,6 +703,8 @@ export class Game {
     // ---- Combat systems + post-animation overrides ----
     this.combat.update(dt);
     this.street.update(dt);
+    if (!modal) this.arrests.update(dt);
+    else this.hud.setArrestActions(null, null);
     this.player.character.postAnimate();
     for (const n of this.npcs) if (n.state !== 'inCar') n.character.postAnimate();
     this.combat.postAnimate();

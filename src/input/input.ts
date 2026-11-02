@@ -3,7 +3,8 @@
  * Gameplay code reads `move`, `look`, and edge-triggered `pressed(action)`.
  */
 export type Action = 'interact' | 'vehicle' | 'notebook' | 'menu' | 'siren' | 'diag' | 'brake'
-  | 'reload' | 'weapon' | 'weapon1' | 'weapon2' | 'weapon3' | 'shoulder' | 'aimToggle';
+  | 'reload' | 'weapon' | 'weapon1' | 'weapon2' | 'weapon3' | 'shoulder' | 'aimToggle'
+  | 'cuff' | 'search';
 
 export class Input {
   /** Movement: x = right, y = forward, magnitude 0..1 */
@@ -170,6 +171,7 @@ export class Input {
         KeyE: 'interact', Enter: 'interact', KeyF: 'vehicle', Tab: 'notebook', KeyN: 'notebook', KeyJ: 'notebook',
         Escape: 'menu', KeyH: 'siren', Backquote: 'diag', F3: 'diag',
         KeyR: 'reload', KeyQ: 'weapon', Digit1: 'weapon1', Digit2: 'weapon2', Digit3: 'weapon3', KeyC: 'shoulder',
+        KeyG: 'cuff', KeyV: 'search',
       };
       const a = map[k];
       if (a) { this.edge.add(a); if (k === 'Tab' || k === 'F3') e.preventDefault(); }
