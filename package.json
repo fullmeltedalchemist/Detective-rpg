@@ -1,0 +1,27 @@
+{
+  "name": "detective-rpg",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit",
+    "test:smoke": "python3 tests/smoke.py",
+    "assets:fetch": "python3 tools/fetch_assets.py",
+    "assets:pack": "node tools/pack_models.mjs"
+  },
+  "dependencies": {
+    "playcanvas": "^2.23.3"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "draco3dgltf": "^1.5.9",
+    "sharp": "^0.35.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}
