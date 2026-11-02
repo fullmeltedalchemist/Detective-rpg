@@ -90,6 +90,27 @@ with sync_playwright() as p:
     def cam(x, z, yaw=200, pitch=-8, dist=4.5):
         page.evaluate(f'() => {{ const g = window.__game; g.player.place({x}, {z}, 0); g.cam.yaw = {yaw}; g.cam.pitch = {pitch}; g.cam.distance = g.cam.targetDistance = {dist}; g.cam.snapTo(g.player.pos); }}')
 
+    # ---------- 0. avatar arms follow the animation (not swung into the torso) ----------
+    arm = page.evaluate('''() => {
+      const g = window.__game, res = [];
+      for (const id of ['nina', 'dale', 'okafor', 'rosa', 'victor']) {
+        const c = g.npc(id).character, m = c.model, t = c.tgtByName;
+        let worst = 0;
+        for (const sd of ['l', 'r']) for (const [a, b] of [['clavicle_', 'upperarm_'], ['upperarm_', 'lowerarm_'], ['lowerarm_', 'hand_']]) {
+          const s = m.findByName(b + sd).getPosition().clone().sub(m.findByName(a + sd).getPosition()).normalize();
+          const d = t.get(b + sd).getPosition().clone().sub(t.get(a + sd).getPosition()).normalize();
+          worst = Math.max(worst, Math.acos(Math.max(-1, Math.min(1, s.dot(d)))) * 57.3);
+        }
+        res.push([id, Math.round(worst)]);
+      }
+      return res; }''')
+    check('avatar arm bones follow the animation (all within 3 deg)', all(w <= 3 for _, w in arm), arm)
+    setup(page, 'nina', 14, -1.0, 180)
+    game_time(page, 1.0)
+    gap = page.evaluate('''() => { const c = window.__game.npc('nina').character, sp = c.tgtByName.get('spine_02').getPosition();
+      return ['l', 'r'].map(sd => { const h = c.tgtByName.get('hand_' + sd).getPosition(); return Math.hypot(h.x - sp.x, h.z - sp.z); }); }''')
+    check('idle hands hang outside the torso (> 0.17 m from the spine)', min(gap) > 0.17, [round(x, 2) for x in gap])
+
     # ---------- 1. measure fall directions ----------
     falls = {}
     for clip in ['death']:

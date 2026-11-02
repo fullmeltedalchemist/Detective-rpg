@@ -108,6 +108,10 @@ const RB_GLOSS: Record<string, number> = { head: 0.42, body: 0.28, opacity: 0.35
 
 const tmpQ = new pc.Quat();
 const tmpQ2 = new pc.Quat();
+/** Arm bones whose direction is aligned between the two rigs (bone -> the child it points at). */
+const ARM_CHILD: Record<string, string> = Object.fromEntries((['l', 'r'] as const).flatMap((s) => [
+  [`clavicle_${s}`, `upperarm_${s}`], [`upperarm_${s}`, `lowerarm_${s}`], [`lowerarm_${s}`, `hand_${s}`], [`hand_${s}`, `middle_01_${s}`],
+]));
 const tmpV = new pc.Vec3();
 const AX = new pc.Vec3(1, 0, 0), AY = new pc.Vec3(0, 1, 0), AZ = new pc.Vec3(0, 0, 1);
 
@@ -159,6 +163,8 @@ export class Humanoid {
   private pairs: RetargetPair[] = [];
   private tgtPelvis: pc.Entity | null = null;
   private srcPelvis: pc.Entity | null = null;
+  /** Avatar bones by animation-skeleton name (visible arms for weapons and hit volumes). */
+  private tgtByName = new Map<string, pc.Entity>();
 
   constructor(assets: Assets, private lib: AnimLibrary, look: HumanLook, name: string, opts: { lod?: boolean; texTier?: string } = {}) {
     this.entity = new pc.Entity(name);
@@ -281,16 +287,30 @@ export class Humanoid {
       const k = (bindY / Math.max(0.1, srcY)) * this.model.getLocalScale().x;
       this.model.setLocalScale(k, k, k);
     }
+    const toTgt = new Map(RB_MAP);
     for (const [a, b] of RB_MAP) {
       const src = this.model.findByName(a) as pc.Entity | null;
       const dst = skin.findByName(b) as pc.Entity | null;
       const m = ibm.get(b);
       if (!src || !dst || !m) continue;
       const bind = new pc.Quat().setFromMat4(m);
+      // The two reference poses differ in the arms (~30-40 deg per joint; legs agree): turn each
+      // avatar arm bone so that in the reference pose it points where the animation bone points.
+      const child = ARM_CHILD[a];
+      const cm = child ? ibm.get(toTgt.get(child) ?? '') : undefined;
+      const srcChild = child ? (this.model.findByName(child) as pc.Entity | null) : null;
+      if (cm && srcChild) {
+        const sd = srcChild.getPosition().clone().sub(src.getPosition()).normalize();
+        const td = cm.getTranslation().sub(m.getTranslation()).normalize();
+        const axis = new pc.Vec3().cross(td, sd);
+        const ang = Math.acos(Math.max(-1, Math.min(1, td.dot(sd)))) * pc.math.RAD_TO_DEG;
+        if (axis.lengthSq() > 1e-10 && ang > 0.5) bind.copy(new pc.Quat().setFromAxisAngle(axis.normalize(), ang).mul(bind));
+      }
       const offset = restRot(src).invert().mul(bind);
       this.pairs.push({ src, dst, offset });
     }
     this.srcPelvis = srcPel; this.tgtPelvis = dstPel;
+    for (const pr of this.pairs) this.tgtByName.set(pr.src.name, pr.dst);
     this.retarget = () => this.applyRetarget();
   }
 
@@ -301,6 +321,7 @@ export class Humanoid {
       p.dst.setRotation(tmpQ);
     }
   }
+
 
   private captureBones() {
     for (const n of ['pelvis', 'spine_01', 'spine_02', 'spine_03', 'neck_01', 'Head', 'clavicle_l', 'clavicle_r', 'upperarm_l', 'upperarm_r',
@@ -425,7 +446,9 @@ export class Humanoid {
   }
 
   bonePos(name: string, out = new pc.Vec3()): pc.Vec3 {
-    const b = this.bones.get(name)?.e ?? (this.model.findByName(name) as pc.Entity | null);
+    // arms: the visible avatar arm (it is adjusted after retargeting); everything else: the animation skeleton
+    const vis = name.startsWith('upperarm') || name.startsWith('lowerarm') || name.startsWith('hand') ? this.tgtByName.get(name) : undefined;
+    const b = vis ?? this.bones.get(name)?.e ?? (this.model.findByName(name) as pc.Entity | null);
     return b ? out.copy(b.getPosition()) : out.copy(this.entity.getPosition());
   }
 
